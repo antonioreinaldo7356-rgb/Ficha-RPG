@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Assassino Verde - RPG App</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Tailwind Configuration & CSS -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        title: ['Cinzel', 'serif'],
+                    },
+                    colors: {
+                        rpg: {
+                            dark: '#0f172a',
+                            panel: '#1e293b',
+                            emerald: '#10b981',
+                            blood: '#e11d48'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020617; /* Slate 950 */
+            color: #f8fafc; /* Slate 50 */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Ocultar barra de rolagem mas manter funcionalidade */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Estilo para os círculos de recursos (Fúria/Dados de vida) */
+        .resource-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+        }
+        .resource-dot.active {
+            background-color: #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+            color: #020617;
+        }
+        .resource-dot.used {
+            border-color: #475569;
+            background-color: transparent;
+            box-shadow: none;
+            opacity: 0.5;
+        }
+        .resource-dot i { display: none; }
+        .resource-dot.active i { display: block; font-size: 0.8rem; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+
+        /* Animação do Dado 3D / Bouncing */
+        .dice-overlay {
+            position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.85);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        .dice-overlay.active { display: flex; }
+        
+        .dice-container {
+            position: relative; width: 140px; height: 140px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        .bouncing {
+            animation: bounceSpin 1.5s cubic-bezier(0.28, 0.84, 0.42, 1) forwards;
+        }
+        
+        @keyframes bounceSpin {
+            0% { transform: translateY(-400px) rotate(0deg) scale(0.5); opacity: 0; }
+            25% { transform: translateY(50px) rotate(180deg) scale(1.2); opacity: 1; }
+            50% { transform: translateY(-100px) rotate(360deg) scale(1); }
+            75% { transform: translateY(20px) rotate(540deg) scale(1.1); }
+            100% { transform: translateY(0) rotate(720deg) scale(1.5); }
+        }
+        
+        .dice-icon { transition: opacity 0.2s; }
+        .dice-text {
+            position: absolute; font-size: 3rem; font-weight: 800; color: white; 
+            font-family: 'Cinzel', serif; display: none; text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+        }
+        .dice-container.show-result .dice-text { display: block; }
+        .dice-container.show-result .dice-icon { opacity: 0.7; }
+    </style>
+</head>
+<body class="antialiased pb-24 selection:bg-emerald-500 selection:text-white relative min-h-screen">
+
+    <!-- Header fixo -->
+    <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 pt-4 pb-3 px-4 shadow-md">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="font-title text-2xl font-bold text-emerald-400 leading-tight">Assassino Verde</h1>
+                <p class="text-xs text-slate-400 font-medium tracking-wider uppercase">Bárbaro 8 • Guardião Ancestral</p>
+            </div>
+            <div class="h-10 w-10 rounded-full border-2 border-emerald-500/50 bg-slate-800 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                <i class="fa-solid fa-dragon"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-md mx-auto p-4 space-y-4">
+
+        <!-- TAB 1: COMBATE -->
+        <section id="tab-combat" class="tab-content active space-y-5">
+            
+            <!-- Quick Combat Stats Grid -->
+            <div class="grid grid-cols-4 gap-2">
+                <div class="bg-slate-800 rounded-xl p-2.5 border border-slate-700 flex flex-col items-center justify-center text-center shadow-lg">
+                    <i class="fa-solid fa-shield-halved text-slate-400 text-xs mb-1"></i>
+                    <span class="text-[0.6rem] text-slate-400 uppercase tracking-widest font-bold">CA</span>
+                    <span class="text-xl font-bold text-white">15</span>
+                    <span class="text-[0.5rem] text-slate-500">Sem Armadura</span>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-2.5 border border-slate-700 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-t from-emerald-900/20 to-transparent"></div>
+                    <i class="fa-solid fa-bolt text-emerald-400 text-xs mb-1 z-10"></i>
+                    <span class="text-[0.6rem] text-slate-400 uppercase tracking-widest font-bold z-10">Iniciativa</span>
+                    <span class="text-xl font-bold text-white z-10">+2</span>
+                    <span class="text-[0.5rem] text-emerald-400 font-bold z-10">Vantagem</span>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-2.5 border border-slate-700 flex flex-col items-center justify-center text-center shadow-lg">
+                    <i class="fa-solid fa-person-running text-slate-400 text-xs mb-1"></i>
+                    <span class="text-[0.6rem] text-slate-400 uppercase tracking-widest font-bold">Desloc.</span>
+                    <span class="text-xl font-bold text-white">12m</span>
+                    <span class="text-[0.5rem] text-slate-500">Rápido</span>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-2.5 border border-slate-700 flex flex-col items-center justify-center text-center shadow-lg">
+                    <i class="fa-solid fa-eye text-slate-400 text-xs mb-1"></i>
+                    <span class="text-[0.6rem] text-slate-400 uppercase tracking-widest font-bold">Percepção</span>
+                    <span class="text-xl font-bold text-white">13</span>
+                    <span class="text-[0.5rem] text-slate-500">Passiva</span>
+                </div>
+            </div>
+
+            <!-- HP & Temp HP Tracker -->
+            <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-slate-900">
+                    <div id="hp-bar" class="h-full bg-gradient-to-r from-red-500 to-emerald-500 transition-all duration-500 ease-out" style="width: 100%;"></div>
+                </div>
+                
+                <div class="flex justify-between items-center mb-1 mt-1">
+                    <span class="text-[0.65rem] text-slate-400 font-title uppercase tracking-widest">Pontos de Vida</span>
+                    <div class="flex items-center gap-1.5 bg-slate-900/80 px-2 py-0.5 rounded-lg border border-slate-700">
+                        <span class="text-[0.6rem] text-blue-400 font-bold uppercase">PV Temp:</span>
+                        <span id="temp-hp-display" class="text-xs font-bold text-blue-300">0</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-center items-baseline gap-2 mb-3">
+                    <span id="current-hp-display" class="text-5xl font-bold text-white drop-shadow-md">85</span>
+                    <span class="text-lg text-slate-500 font-bold">/ 85</span>
+                </div>
+
+                <!-- HP Controls -->
+                <div class="grid grid-cols-6 gap-1 mb-2">
+                    <button onclick="modifyHP(-10)" class="bg-red-950/60 hover:bg-red-900 text-red-300 font-bold py-2 rounded-lg border border-red-900/50 text-xs active:scale-95 touch-manipulation">-10</button>
+                    <button onclick="modifyHP(-5)" class="bg-red-950/40 hover:bg-red-900 text-red-400 font-bold py-2 rounded-lg border border-red-900/50 text-xs active:scale-95 touch-manipulation">-5</button>
+                    <button onclick="modifyHP(-1)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-600 text-xs active:scale-95 touch-manipulation">-1</button>
+                    <button onclick="modifyHP(1)" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 rounded-lg border border-slate-600 text-xs active:scale-95 touch-manipulation">+1</button>
+                    <button onclick="modifyHP(5)" class="bg-emerald-950/40 hover:bg-emerald-900 text-emerald-400 font-bold py-2 rounded-lg border border-emerald-900/50 text-xs active:scale-95 touch-manipulation">+5</button>
+                    <button onclick="modifyHP(10)" class="bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 font-bold py-2 rounded-lg border border-emerald-900/50 text-xs active:scale-95 touch-manipulation">+10</button>
+                </div>
+
+                <!-- Temp HP Quick Modifier -->
+                <div class="flex justify-between items-center pt-2 border-t border-slate-700/60 text-xs">
+                    <span class="text-slate-400 text-[0.7rem]">Ajustar PV Temp:</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="modifyTempHP(-1)" class="px-2 py-0.5 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 font-bold">-</button>
+                        <button onclick="modifyTempHP(1)" class="px-2 py-0.5 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-blue-400 font-bold">+</button>
+                        <button onclick="clearTempHP()" class="px-2 py-0.5 bg-slate-900 hover:bg-slate-700 border border-slate-700 rounded text-slate-400 text-[0.65rem]">Zerar</button>
+                    </div>
+                </div>
+
+                <!-- Death Saves (shown automatically if HP == 0) -->
+                <div id="death-saves-box" class="mt-3 pt-3 border-t border-red-900/40 hidden">
+                    <p class="text-[0.65rem] text-red-400 font-bold uppercase tracking-wider text-center mb-2">Testes Contra a Morte</p>
+                    <div class="flex justify-around items-center">
+                        <div>
+                            <span class="text-[0.6rem] text-emerald-400 block mb-1 font-bold">SUCESSOS</span>
+                            <div class="flex gap-1.5" id="death-successes">
+                                <span onclick="toggleDeathSave('s', 0)" class="w-5 h-5 rounded-full border border-emerald-500 cursor-pointer flex items-center justify-center text-xs"></span>
+                                <span onclick="toggleDeathSave('s', 1)" class="w-5 h-5 rounded-full border border-emerald-500 cursor-pointer flex items-center justify-center text-xs"></span>
+                                <span onclick="toggleDeathSave('s', 2)" class="w-5 h-5 rounded-full border border-emerald-500 cursor-pointer flex items-center justify-center text-xs"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[0.6rem] text-red-400 block mb-1 font-bold">FRACASSOS</span>
+                            <div class="flex gap-1.5" id="death-failures">
+                                <span onclick="toggleDeathSave('f', 0)" class="w-5 h-5 rounded-full border border-red-500 cursor-pointer flex items-center justify-center text-xs"></span>
+                                <span onclick="toggleDeathSave('f', 1)" class="w-5 h-5 rounded-full border border-red-500 cursor-pointer flex items-center justify-center text-xs"></span>
+                                <span onclick="toggleDeathSave('f', 2)" class="w-5 h-5 rounded-full border border-red-500 cursor-pointer flex items-center justify-center text-xs"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Long Rest Trigger -->
+                <div class="mt-3 text-center">
+                    <button onclick="openRestModal()" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center justify-center gap-1.5 mx-auto transition-colors">
+                        <i class="fa-solid fa-campground text-emerald-500"></i> Descanso Longo (Restaurar Tudo)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Fúria & Dados de Vida -->
+            <div class="grid grid-cols-1 gap-3">
+                <!-- Fúria Tracker -->
+                <div class="bg-slate-800 rounded-xl p-3.5 border border-emerald-900/40 shadow-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-title text-emerald-400 text-xs tracking-wider uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-fire text-amber-500"></i> Fúria (4 usos / Descanso Longo)
+                        </h3>
+                        <span id="rage-status-badge" class="text-[0.65rem] px-2 py-0.5 rounded font-bold bg-slate-900 text-slate-400">INATIVA</span>
+                    </div>
+                    <div class="flex justify-around items-center my-2" id="rage-container">
+                        <!-- Dots rendered by JS -->
+                    </div>
+                    <div class="text-[0.65rem] text-slate-400 bg-slate-900/60 p-2 rounded-lg border border-slate-700/50 mt-2 space-y-0.5">
+                        <p>• <b>Benefícios:</b> +2 dano corpo a corpo com FOR, resistência a dano cortante, perfurante e concussão, vantagem em testes e salvaguardas de FOR.</p>
+                        <p>• <b>Restrições:</b> Não conjura nem mantém concentração. Dura 1 minuto.</p>
+                    </div>
+                </div>
+
+                <!-- Dados de Vida -->
+                <div class="bg-slate-800 rounded-xl p-3.5 border border-slate-700 shadow-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-title text-slate-300 text-xs tracking-wider uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-heart-pulse text-red-400"></i> Dados de Vida (8d12)
+                        </h3>
+                        <span id="hd-counter-text" class="text-[0.65rem] text-slate-400">8 disponíveis</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2 justify-center" id="hd-container">
+                        <!-- Dots rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regras de Combate Rápido / Táticas -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center">
+                    <span class="text-[0.65rem] text-slate-400 uppercase tracking-wider font-bold block mb-1">Ataque Extra</span>
+                    <span class="text-sm font-bold text-emerald-400">2 Ataques / Ação</span>
+                    <p class="text-[0.55rem] text-slate-500 mt-0.5">Nível 5 de Bárbaro</p>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 text-center">
+                    <span class="text-[0.65rem] text-slate-400 uppercase tracking-wider font-bold block mb-1">Ataque Imprudente</span>
+                    <span class="text-sm font-bold text-amber-400">Vantagem de FOR</span>
+                    <p class="text-[0.55rem] text-slate-500 mt-0.5">Inimigos ganham vant. contra você</p>
+                </div>
+            </div>
+
+            <!-- ARMAS E ATAQUES -->
+            <div class="space-y-3">
+                <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1">
+                    Ataques Disponíveis
+                </h3>
+
+                <!-- Arma 1: Machado de Prata Sepulcral -->
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-emerald-600/40 p-4 shadow-xl relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h4 class="font-title text-base font-bold text-white">Machado de Prata Sepulcral</h4>
+                                <span class="text-[0.55rem] bg-emerald-950 text-emerald-300 border border-emerald-700/50 px-1.5 py-0.2 rounded font-bold uppercase">Mágico</span>
+                            </div>
+                            <p class="text-[0.65rem] text-slate-400 mt-0.5">2 Mãos • Alcance 1.5m • Golpeia espíritos incorpóreos</p>
+                        </div>
+                        <div class="bg-slate-950 px-2 py-1 rounded-lg border border-slate-700 text-center min-w-[3rem]">
+                            <span class="block text-[0.55rem] text-slate-400 uppercase font-bold">Acerto</span>
+                            <span class="text-base font-bold text-emerald-400">+8</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-xs text-slate-300 mb-3 bg-slate-950/40 p-2 rounded-lg border border-slate-800">
+                        <span>Dano: <b class="text-white" id="machado-dmg-text">1d10 + 5</b> cortante</span>
+                        <span id="machado-rage-tag" class="text-amber-400 text-[0.65rem] font-bold hidden bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/40">+2 Fúria (+7 total)</span>
+                    </div>
+
+                    <button onclick="rollWeapon('machado')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-title text-xs font-bold uppercase tracking-widest py-3 rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 touch-manipulation">
+                        <i class="fa-solid fa-dice-d20 text-base"></i> Rolar Machado (1d10)
+                    </button>
+                </div>
+
+                <!-- Arma 2: Azagaias (com rastreador de 4 unidades) -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-lg">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-title text-base font-bold text-white">Azagaia</h4>
+                            <p class="text-[0.65rem] text-slate-400 mt-0.5">Arremesso (9m / 36m) ou Corpo a corpo</p>
+                        </div>
+                        <div class="bg-slate-950 px-2 py-1 rounded-lg border border-slate-700 text-center min-w-[3rem]">
+                            <span class="block text-[0.55rem] text-slate-400 uppercase font-bold">Acerto</span>
+                            <span class="text-base font-bold text-emerald-400">+8</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-slate-300 mb-2">
+                        <span>Dano: <b class="text-white">1d6 + 5</b> perfurante</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[0.65rem] text-slate-400 uppercase">Qtd (4):</span>
+                            <div class="flex gap-1" id="javelin-dots"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="rollWeapon('azagaia')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-title text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg border border-slate-600 transition-all active:scale-95 flex items-center justify-center gap-2 touch-manipulation">
+                        <i class="fa-solid fa-crosshairs text-emerald-400"></i> Rolar Azagaia (1d6)
+                    </button>
+                </div>
+
+                <!-- Arma 3: Adaga -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow-lg">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-title text-base font-bold text-white">Adaga</h4>
+                            <p class="text-[0.65rem] text-slate-400 mt-0.5">Leve • Acuidade • Arremesso (6m / 18m)</p>
+                        </div>
+                        <div class="bg-slate-950 px-2 py-1 rounded-lg border border-slate-700 text-center min-w-[3rem]">
+                            <span class="block text-[0.55rem] text-slate-400 uppercase font-bold">Acerto</span>
+                            <span class="text-base font-bold text-emerald-400">+8</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-slate-300 mb-2">
+                        <span>Dano: <b class="text-white">1d4 + 5</b> perfurante</span>
+                    </div>
+
+                    <button onclick="rollWeapon('adaga')" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-title text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg border border-slate-600 transition-all active:scale-95 flex items-center justify-center gap-2 touch-manipulation">
+                        <i class="fa-solid fa-feather-pointed text-emerald-400"></i> Rolar Adaga (1d4)
+                    </button>
+                </div>
+
+                <!-- Ação Especial: Escudo Espiritual (Reação 2d6) -->
+                <div class="bg-blue-950/30 rounded-xl border border-blue-500/40 p-3.5 shadow-lg flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-1">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-shield text-blue-400"></i>
+                            <h4 class="font-title text-sm font-bold text-white">Escudo Espiritual</h4>
+                        </div>
+                        <span class="bg-blue-900/60 text-blue-300 text-[0.6rem] font-bold uppercase px-2 py-0.5 rounded border border-blue-700/60">Reação • 9m</span>
+                    </div>
+                    <p class="text-[0.65rem] text-slate-300 leading-snug mb-3">
+                        Enquanto em Fúria, use sua reação para <b>reduzir o dano</b> que OUTRA criatura visível a até 9m sofrer em <b>2d6</b>.
+                    </p>
+                    <button onclick="rollSpiritShield()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-title text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-dice"></i> Rolar Redução (2d6)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Ordem de Jogo / Guia Tático (Página 3 do PDF) -->
+            <details class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
+                <summary class="p-3 text-xs font-title font-bold text-emerald-400 cursor-pointer flex justify-between items-center select-none">
+                    <span><i class="fa-solid fa-clipboard-list mr-1.5"></i> Guia Rápido: Ordem de Combate Sugerida</span>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </summary>
+                <div class="p-3 bg-slate-900/70 text-xs text-slate-300 space-y-2 border-t border-slate-700 text-[0.7rem] leading-relaxed">
+                    <p><b>1. Antes do Combate:</b> Furtividade (+5) e Sobrevivência (+3) para rastrear o terreno, emboscadas e sinais do inimigo.</p>
+                    <p><b>2. 1º Turno:</b> Use a Ação Bônus para entrar em <b>Fúria</b>; use a Ação para desferir <b>2 ataques</b> com o Machado (+8).</p>
+                    <p><b>3. Primeiro alvo atingido:</b> Seus <i>Protetores Ancestrais</i> assombram o alvo até o início do seu próximo turno. Ele tem desvantagem ao atacar seus aliados, e os aliados ganham resistência ao dano dele!</p>
+                    <p><b>4. Proteja o grupo:</b> Guarde sua reação para usar o <i>Escudo Espiritual</i> e anular 2d6 de dano em um aliado a até 9m.</p>
+                </div>
+            </details>
+
+        </section>
+
+        <!-- TAB 2: STATUS, PERÍCIAS E SALVAGUARDAS -->
+        <section id="tab-status" class="tab-content space-y-5">
+            
+            <!-- Visão Geral de Nível & XP -->
+            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow-lg">
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                        <span class="text-[0.6rem] text-slate-400 font-bold uppercase block">Classe</span>
+                        <span class="text-xs font-bold text-white">Bárbaro 8</span>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-slate-700">
+                        <span class="text-[0.6rem] text-slate-400 font-bold uppercase block">Raça</span>
+                        <span class="text-xs font-bold text-white">Meio-elfo</span>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-emerald-900/50">
+                        <span class="text-[0.6rem] text-emerald-400 font-bold uppercase block">Profic.</span>
+                        <span class="text-base font-bold text-emerald-400">+3</span>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-lg border border-blue-900/50">
+                        <span class="text-[0.6rem] text-blue-400 font-bold uppercase block">XP</span>
+                        <span class="text-xs font-bold text-blue-300">34.000</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6 Atributos D&D 5E -->
+            <div>
+                <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1 mb-2.5">
+                    Atributos
+                </h3>
+                <div class="grid grid-cols-3 gap-2.5">
+                    <!-- FORÇA -->
+                    <div class="bg-slate-800 border-2 border-emerald-500/50 rounded-xl p-2.5 text-center shadow-md">
+                        <span class="text-[0.65rem] text-slate-400 uppercase font-bold block">Força</span>
+                        <span class="text-2xl font-bold text-white leading-tight">20</span>
+                        <div class="bg-emerald-950 text-emerald-400 text-xs font-bold rounded-full py-0.5 mt-1 border border-emerald-500/30">+5</div>
+                    </div>
+
+                    <!-- DESTREZA -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-center shadow-md">
+                        <span class="text-[0.65rem] text-slate-400 uppercase font-bold block">Destreza</span>
+                        <span class="text-2xl font-bold text-white leading-tight">14</span>
+                        <div class="bg-slate-900 text-slate-300 text-xs font-bold rounded-full py-0.5 mt-1 border border-slate-700">+2</div>
+                    </div>
+
+                    <!-- CONSTITUIÇÃO -->
+                    <div class="bg-slate-800 border-2 border-emerald-500/40 rounded-xl p-2.5 text-center shadow-md">
+                        <span class="text-[0.65rem] text-slate-400 uppercase font-bold block">Constituição</span>
+                        <span class="text-2xl font-bold text-white leading-tight">16</span>
+                        <div class="bg-emerald-950 text-emerald-400 text-xs font-bold rounded-full py-0.5 mt-1 border border-emerald-500/30">+3</div>
+                    </div>
+
+                    <!-- INTELIGÊNCIA -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-center shadow-md">
+                        <span class="text-[0.65rem] text-slate-400 uppercase font-bold block">Inteligência</span>
+                        <span class="text-2xl font-bold text-white leading-tight">8</span>
+                        <div class="bg-slate-900 text-slate-400 text-xs font-bold rounded-full py-0.5 mt-1 border border-slate-700">-1</div>
+                    </div>
+
+                    <!-- SABEDORIA -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-center shadow-md">
+                        <span class="text-[0.65rem] text-slate-400 uppercase font-bold block">Sabedoria</span>
+                        <span class="text-2xl font-bold text-white leading-tight">10</span>
+                        <div class="bg-slate-900 text-slate-300 text-xs font-bold rounded-full py-0.5 mt-1 border border-slate-700">+0</div>
+                    </div>
+
+                    <!-- CARISMA -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-center shadow-md">
+                        <span class="text-[0.65rem] text-slate-400 uppercase font-bold block">Carisma</span>
+                        <span class="text-2xl font-bold text-white leading-tight">10</span>
+                        <div class="bg-slate-900 text-slate-300 text-xs font-bold rounded-full py-0.5 mt-1 border border-slate-700">+0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Salvaguardas / Resistências -->
+            <div>
+                <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1 mb-2.5">
+                    Testes de Resistência
+                </h3>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-slate-800 border border-emerald-500/50 p-2 rounded-lg flex justify-between items-center">
+                        <span class="text-xs text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-check text-[0.65rem]"></i> FOR</span>
+                        <span class="text-sm font-bold text-white">+8</span>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-2 rounded-lg flex justify-between items-center relative" title="Vantagem por Sentido de Perigo">
+                        <span class="text-xs text-slate-300 font-bold">DES</span>
+                        <span class="text-sm font-bold text-white">+2*</span>
+                    </div>
+                    <div class="bg-slate-800 border border-emerald-500/50 p-2 rounded-lg flex justify-between items-center">
+                        <span class="text-xs text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-check text-[0.65rem]"></i> CON</span>
+                        <span class="text-sm font-bold text-white">+6</span>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-2 rounded-lg flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-bold">INT</span>
+                        <span class="text-sm font-bold text-slate-400">-1</span>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-2 rounded-lg flex justify-between items-center">
+                        <span class="text-xs text-slate-300 font-bold">SAB</span>
+                        <span class="text-sm font-bold text-slate-300">+0</span>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700 p-2 rounded-lg flex justify-between items-center">
+                        <span class="text-xs text-slate-300 font-bold">CAR</span>
+                        <span class="text-sm font-bold text-slate-300">+0</span>
+                    </div>
+                </div>
+                <p class="text-[0.65rem] text-slate-400 mt-1.5 italic">* DES tem <b>vantagem</b> contra armadilhas e efeitos visíveis (Sentido de Perigo). Vantagem contra ser <b>enfeitiçado</b> e imune a sono mágico (Ascendência Feérica).</p>
+            </div>
+
+            <!-- Todas as Perícias (18) com destaque oficial -->
+            <div>
+                <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1 mb-2.5">
+                    Perícias (Oficiais da Ficha)
+                </h3>
+                <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg divide-y divide-slate-700/60 text-xs">
+                    <!-- Proficientes em destaque -->
+                    <div class="flex justify-between items-center p-2.5 bg-emerald-950/20 font-bold text-emerald-300">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i> Atletismo (FOR)</span>
+                        <span class="text-emerald-400 text-sm">+8</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2.5 bg-emerald-950/20 font-bold text-emerald-300">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i> Furtividade (DES)</span>
+                        <span class="text-emerald-400 text-sm">+5</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2.5 bg-emerald-950/20 font-bold text-emerald-300">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i> Intimidação (CAR)</span>
+                        <span class="text-emerald-400 text-sm">+3</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2.5 bg-emerald-950/20 font-bold text-emerald-300">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i> Intuição (SAB)</span>
+                        <span class="text-emerald-400 text-sm">+3</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2.5 bg-emerald-950/20 font-bold text-emerald-300">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i> Percepção (SAB)</span>
+                        <span class="text-emerald-400 text-sm">+3</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2.5 bg-emerald-950/20 font-bold text-emerald-300">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i> Sobrevivência (SAB)</span>
+                        <span class="text-emerald-400 text-sm">+3</span>
+                    </div>
+
+                    <!-- Não proficientes -->
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Acrobacia (DES)</span>
+                        <span>+2</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Arcanismo (INT)</span>
+                        <span>-1</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Atuação (CAR)</span>
+                        <span>+0</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Blefar (CAR)</span>
+                        <span>+0</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">História (INT)</span>
+                        <span>-1</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Investigação (INT)</span>
+                        <span>-1</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Lidar com Animais (SAB)</span>
+                        <span>+0</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Medicina (SAB)</span>
+                        <span>+0</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Natureza (INT)</span>
+                        <span>-1</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Persuasão (CAR)</span>
+                        <span>+0</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Prestidigitação (DES)</span>
+                        <span>+2</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 text-slate-300">
+                        <span class="pl-5 text-slate-400">Religião (INT)</span>
+                        <span>-1</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outras Proficiências & Idiomas -->
+            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 text-xs space-y-2">
+                <div>
+                    <span class="text-slate-400 font-bold block uppercase text-[0.65rem]">Armaduras & Armas:</span>
+                    <p class="text-slate-200">Armaduras leves, médias e escudos; Armas simples e marciais.</p>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-bold block uppercase text-[0.65rem]">Ferramentas:</span>
+                    <p class="text-slate-200">Flauta (Antecedente Forasteiro).</p>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-bold block uppercase text-[0.65rem]">Idiomas:</span>
+                    <p class="text-slate-200">Comum, Élfico, Orc e Silvestre.</p>
+                </div>
+                <div>
+                    <span class="text-slate-400 font-bold block uppercase text-[0.65rem]">Sentidos:</span>
+                    <p class="text-slate-200">Visão no Escuro 18m (60 pés) • Sabedoria Passiva (Percepção) 13.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- TAB 3: HABILIDADES DETALHADAS -->
+        <section id="tab-abilities" class="tab-content space-y-3.5">
+            <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1">
+                Características & Habilidades (D&D 5E 2014)
+            </h3>
+
+            <!-- Fúria -->
+            <div class="bg-slate-800 border-l-4 border-amber-500 rounded-r-xl p-3.5 shadow-md">
+                <div class="flex justify-between items-center mb-1">
+                    <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-fire text-amber-500"></i> Fúria Bárbara
+                    </h4>
+                    <span class="text-[0.6rem] bg-amber-950 text-amber-300 px-2 py-0.5 rounded font-bold uppercase">4 usos / Descanso Longo</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Ação bônus para ativar (dura 1 min). Concede <b>+2 de dano</b> com armas corpo a corpo usando FOR, resistência a dano cortante, perfurante e concussão, e vantagem em testes de FOR e salvaguardas de FOR. Não permite conjurar ou concentrar em magias.
+                </p>
+            </div>
+
+            <!-- Protetores Ancestrais -->
+            <div class="bg-slate-800 border-l-4 border-emerald-500 rounded-r-xl p-3.5 shadow-md">
+                <div class="flex justify-between items-center mb-1">
+                    <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-ghost text-emerald-400"></i> Protetores Ancestrais (Nível 3)
+                    </h4>
+                    <span class="text-[0.6rem] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded font-bold uppercase">Em Fúria</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    O <b>primeiro alvo</b> que você acertar em <b>SEU TURNO</b> é assombrado pelos guerreiros de sua linhagem até o início do seu próximo turno. Ele ganha desvantagem em jogadas de ataque contra qualquer criatura além de você, e se atingir outra criatura, ela recebe resistência a todo o dano daquele ataque.
+                </p>
+            </div>
+
+            <!-- Escudo Espiritual -->
+            <div class="bg-slate-800 border-l-4 border-blue-500 rounded-r-xl p-3.5 shadow-md">
+                <div class="flex justify-between items-center mb-1">
+                    <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield text-blue-400"></i> Escudo Espiritual (Nível 6)
+                    </h4>
+                    <span class="text-[0.6rem] bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-bold uppercase">Reação • 9m</span>
+                </div>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Enquanto estiver em Fúria, quando OUTRA criatura que você possa ver a até 9 metros sofrer dano, use sua reação para interpor espíritos protetores e reduzir o dano sofrido por ela em <b>2d6</b>.
+                </p>
+            </div>
+
+            <!-- Ataque Imprudente & Sentido de Perigo -->
+            <div class="bg-slate-800 border-l-4 border-red-500 rounded-r-xl p-3.5 shadow-md">
+                <h4 class="font-bold text-white text-sm flex items-center gap-1.5 mb-1">
+                    <i class="fa-solid fa-hand-fist text-red-400"></i> Ataque Imprudente & Sentido de Perigo
+                </h4>
+                <p class="text-xs text-slate-300 leading-relaxed mb-2">
+                    <b>Ataque Imprudente:</b> No seu primeiro ataque do turno, você pode atacar com Vantagem em golpes corpo a corpo com FOR. Ataques contra você ganham vantagem até seu próximo turno.
+                </p>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    <b>Sentido de Perigo:</b> Vantagem em salvaguardas de Destreza contra armadilhas, magias e efeitos que você possa ver, desde que não esteja cego, surdo ou incapacitado.
+                </p>
+            </div>
+
+            <!-- Ataque Extra, Movimento Rápido & Instinto Selvagem -->
+            <div class="bg-slate-800 border-l-4 border-purple-500 rounded-r-xl p-3.5 shadow-md space-y-2">
+                <h4 class="font-bold text-white text-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-person-running text-purple-400"></i> Traços Físicos de Bárbaro
+                </h4>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    • <b>Ataque Extra (Nív 5):</b> Você pode atacar 2 vezes ao invés de 1 sempre que fizer a Ação de Ataque.<br>
+                    • <b>Movimento Rápido:</b> +3 metros de deslocamento quando não estiver usando armadura pesada (total 12m).<br>
+                    • <b>Instinto Selvagem (Nív 7):</b> Seus instintos são tão aguçados que você tem <b>Vantagem permanente na Iniciativa</b> e não pode ser surpreendido se entrar em Fúria imediatamente.
+                </p>
+            </div>
+
+            <!-- Machado de Prata Sepulcral (Lore & Regra Caseira) -->
+            <div class="bg-slate-800 border-l-4 border-emerald-400 rounded-r-xl p-3.5 shadow-md">
+                <h4 class="font-bold text-white text-sm flex items-center gap-1.5 mb-1">
+                    <i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i> Machado da Prata Sepulcral (Herança)
+                </h4>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    Machado grande mágico de duas mãos herdado de seu avô. Seus golpes são considerados mágicos e são capazes de atingir espíritos e criaturas incorpóreas que estejam no mesmo plano e sejam alvos válidos, superando resistências convencionais contra armas mundanas.
+                </p>
+            </div>
+        </section>
+
+        <!-- TAB 4: BIO, EQUIPAMENTO E HISTÓRIA -->
+        <section id="tab-bio" class="tab-content space-y-4">
+            
+            <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1">
+                Identidade & Interpretação
+            </h3>
+
+            <!-- Ficha Pessoal -->
+            <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 text-xs grid grid-cols-2 gap-2">
+                <div><span class="text-slate-400 font-bold">Idade:</span> Mais de 80 anos</div>
+                <div><span class="text-slate-400 font-bold">Linhagem:</span> Meio-elfo (2014)</div>
+                <div><span class="text-slate-400 font-bold">Cabelos:</span> Brancos, longos</div>
+                <div><span class="text-slate-400 font-bold">Olhos:</span> Cinza (sugestão)</div>
+                <div><span class="text-slate-400 font-bold">Pele:</span> Clara, marcada</div>
+                <div><span class="text-slate-400 font-bold">Título:</span> Último Herdeiro</div>
+            </div>
+
+            <!-- RP Cards -->
+            <div class="space-y-2.5">
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <span class="text-[0.65rem] text-emerald-400 font-bold uppercase tracking-wider block mb-1">Traços de Personalidade</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">
+                        "Poucas palavras, muita paciência. Conhece a floresta como a própria pele; vigia antes de atacar."
+                    </p>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <span class="text-[0.65rem] text-blue-400 font-bold uppercase tracking-wider block mb-1">Ideais</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">
+                        "Vingança contra os orcs. Honrar os mortos e descobrir a verdade sobre sua linhagem."
+                    </p>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <span class="text-[0.65rem] text-amber-400 font-bold uppercase tracking-wider block mb-1">Ligações</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">
+                        "Família assassinada; avô sobrevivente; espíritos ancestrais; machado herdado de Prata Sepulcral."
+                    </p>
+                </div>
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <span class="text-[0.65rem] text-red-400 font-bold uppercase tracking-wider block mb-1">Defeitos</span>
+                    <p class="text-xs text-slate-200 leading-relaxed">
+                        "A obsessão pelo rei orc pode fazê-lo sacrificar alianças, segurança e o próprio futuro."
+                    </p>
+                </div>
+            </div>
+
+            <!-- Equipamento Completo & Tesouro -->
+            <div>
+                <h3 class="font-title text-sm text-emerald-400 tracking-wider uppercase border-b border-slate-700 pb-1 mb-2.5">
+                    Equipamentos & Tesouro
+                </h3>
+                <div class="bg-slate-800 rounded-xl p-3.5 border border-slate-700 text-xs space-y-2">
+                    <div class="flex justify-between items-center bg-slate-900 p-2 rounded-lg border border-yellow-700/40">
+                        <span class="font-bold text-yellow-400 flex items-center gap-1.5"><i class="fa-solid fa-coins"></i> Moedas</span>
+                        <span class="font-bold text-white">10 Peças de Ouro (PO)</span>
+                    </div>
+                    <ul class="list-disc list-inside space-y-1 text-slate-300">
+                        <li><b>Machado grande de Prata Sepulcral</b> (herança mágica)</li>
+                        <li><b>4 azagaias</b> (arremesso/combate)</li>
+                        <li><b>Adaga</b> de caça</li>
+                        <li>Manto de pele escura & Roupas de caçador</li>
+                        <li>Pacote de explorador (mochila, pederneira, tochas, rações, odre, corda)</li>
+                        <li>Lembranças da família e do avô</li>
+                        <li>Flauta rústica (instrumento musical)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- História Completa do Personagem (Lore da Página 2) -->
+            <details class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
+                <summary class="p-3 text-xs font-title font-bold text-emerald-400 cursor-pointer flex justify-between items-center select-none">
+                    <span><i class="fa-solid fa-scroll mr-1.5"></i> A Lenda do Assassino Verde (História)</span>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </summary>
+                <div class="p-3 bg-slate-900/80 text-xs text-slate-300 space-y-2.5 border-t border-slate-700 leading-relaxed">
+                    <p>
+                        Descendente de um guerreiro élfico lendário exilado por amar uma humana, ele nasceu trazendo os raros cabelos brancos de sua linhagem ancestral.
+                    </p>
+                    <p>
+                        Durante a guerra, seu avô enviou a família para outro continente em busca de refúgio. Contudo, uma violenta tempestade despedaçou o navio; sua mãe conseguiu resgatá-lo do mar com vida, mas faleceu exausta nas areias da praia. Pescadores humanos encontraram a criança e o criaram.
+                    </p>
+                    <p>
+                        O personagem viveu por décadas entre humanos comuns, envelhecendo a passos lentos e muitas vezes sendo visto como um forasteiro. Com o tempo, construiu sua própria família e encontrou uma paz duradoura em uma pacata aldeia na floresta.
+                    </p>
+                    <p>
+                        Toda essa paz foi brutalmente destruída em uma sangrenta incursão orc que ceifou a vida de todos a quem amava. A partir daquela cinza, nasceram emboscadas calculadas, caçadas implacáveis e o temido apelido: <b>Assassino Verde</b>. Seu único objetivo final passou a ser arrancar a cabeça do rei dos orcs.
+                    </p>
+                    <p>
+                        Ao quase sucumbir em uma batalha para alcançá-lo, ganhou a profunda cicatriz que corta seu rosto e teve sua alma levada ao limiar do reino dos mortos, onde reencontrou seus entes queridos. Ao retornar milagrosamente à vida, despertou consigo os <b>Guardiões Ancestrais</b>. Mais tarde, descobriu que seu avô sobrevivera como lutador de arena e herdou dele o Machado de Prata Sepulcral. Agora, caminha na corda bamba entre ser apenas vingança ou cumprir o destino de herdeiro.
+                    </p>
+                </div>
+            </details>
+
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (4 Abas) -->
+    <nav class="fixed bottom-0 left-0 w-full bg-slate-900 border-t border-slate-800 pb-safe z-40 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+        <div class="max-w-md mx-auto flex justify-around items-center h-16">
+            <button onclick="switchTab('combat', this)" class="nav-btn active flex flex-col items-center justify-center w-full h-full text-emerald-400 transition-colors">
+                <i class="fa-solid fa-khanda text-lg mb-1 transition-transform duration-200"></i>
+                <span class="text-[0.6rem] font-bold uppercase tracking-wider">Combate</span>
+            </button>
+            <button onclick="switchTab('status', this)" class="nav-btn flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-emerald-400 transition-colors">
+                <i class="fa-solid fa-user-shield text-lg mb-1 transition-transform duration-200"></i>
+                <span class="text-[0.6rem] font-bold uppercase tracking-wider">Status</span>
+            </button>
+            <button onclick="switchTab('abilities', this)" class="nav-btn flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-emerald-400 transition-colors">
+                <i class="fa-solid fa-book-journal-whills text-lg mb-1 transition-transform duration-200"></i>
+                <span class="text-[0.6rem] font-bold uppercase tracking-wider">Poderes</span>
+            </button>
+            <button onclick="switchTab('bio', this)" class="nav-btn flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-emerald-400 transition-colors">
+                <i class="fa-solid fa-scroll text-lg mb-1 transition-transform duration-200"></i>
+                <span class="text-[0.6rem] font-bold uppercase tracking-wider">Bio & Lore</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Modal de Resultado de Rolagem -->
+    <div id="dice-modal" class="modal-overlay fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div class="modal-content bg-slate-900 border-2 border-emerald-600 rounded-2xl p-6 w-full max-w-sm shadow-[0_0_30px_rgba(16,185,129,0.2)] text-center relative overflow-hidden">
+            <i class="fa-solid fa-dice-d20 absolute -right-10 -top-10 text-[150px] text-emerald-900/20 rotate-12 pointer-events-none"></i>
+            
+            <h2 id="modal-title" class="font-title text-2xl font-bold text-white mb-1 relative z-10">Ataque!</h2>
+            <p id="modal-weapon-name" class="text-xs text-slate-400 mb-5 relative z-10 font-medium">Machado de Prata Sepulcral</p>
+            
+            <div id="modal-results-container" class="space-y-3.5 relative z-10">
+                <!-- Acerto -->
+                <div id="modal-hit-box" class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <p class="text-[0.65rem] text-slate-400 uppercase font-bold tracking-widest mb-1">Acerto (1d20 + 8)</p>
+                    <div id="modal-hit-result" class="text-4xl font-bold text-emerald-400 font-title">25</div>
+                    <p id="modal-hit-breakdown" class="text-xs text-slate-400 mt-1">Rolou 17 + 8</p>
+                </div>
+                
+                <!-- Dano -->
+                <div id="modal-dmg-box" class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <p id="modal-dmg-title" class="text-[0.65rem] text-slate-400 uppercase font-bold tracking-widest mb-1">Dano</p>
+                    <div id="modal-dmg-result" class="text-4xl font-bold text-white font-title">12</div>
+                    <p id="modal-dmg-breakdown" class="text-xs text-slate-400 mt-1">1d10 (7) + 5</p>
+                </div>
+            </div>
+
+            <button onclick="closeModal()" class="mt-5 w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg border border-slate-500 transition-colors relative z-10">
+                Fechar
+            </button>
+        </div>
+    </div>
+
+    <!-- Animação do Dado Pulando na Tela -->
+    <div id="dice-anim-overlay" class="dice-overlay">
+        <div id="dice-anim-container" class="dice-container text-emerald-500">
+            <i class="fa-solid fa-dice-d20 dice-icon text-[120px] drop-shadow-[0_0_20px_rgba(16,185,129,0.6)]"></i>
+            <span id="dice-anim-text" class="dice-text">20</span>
+        </div>
+    </div>
+
+    <!-- Modal do Descanso Longo -->
+    <div id="rest-modal" class="modal-overlay fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div class="modal-content bg-slate-900 border-2 border-emerald-600 rounded-2xl p-6 w-full max-w-xs shadow-2xl text-center">
+            <div class="w-14 h-14 bg-emerald-950/70 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-400 text-2xl">
+                <i class="fa-solid fa-campground"></i>
+            </div>
+            <h3 class="font-title text-xl font-bold text-white mb-2">Descanso Longo</h3>
+            <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                Descansar recuperará todos os <b>85 Pontos de Vida</b>, todas as <b>4 Fúrias</b>, todas as <b>4 Azagaias</b> e todos os <b>8 Dados de Vida</b>.
+            </p>
+            <div class="flex gap-2">
+                <button onclick="closeRestModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl border border-slate-700 text-xs">
+                    Cancelar
+                </button>
+                <button onclick="confirmLongRest()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-900/50">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lógica da Aplicação JavaScript -->
+    <script>
+        // -- ESTADO & REGRAS OFICIAIS DO PDF --
+        const STORAGE_KEY = 'assassino_verde_v2_state';
+        const MAX_HP = 85;
+        const STR_MOD = 5;      // FOR 20 (+5)
+        const PROF_BONUS = 3;   // Bárbaro Nível 8 (+3)
+        const HIT_BONUS = 8;     // +8 (+5 FOR + 3 Profic)
+        
+        let state = {
+            hp: 85,
+            tempHp: 0,
+            rage: [false, false, false, false], // true = ativa/gasta
+            hd: [false, false, false, false, false, false, false, false], // true = gasto
+            javelins: 4,
+            deathSaves: { s: [false, false, false], f: [false, false, false] }
+        };
+
+        function loadState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (typeof parsed.hp === 'number') state.hp = parsed.hp;
+                    if (typeof parsed.tempHp === 'number') state.tempHp = parsed.tempHp;
+                    if (Array.isArray(parsed.rage)) state.rage = parsed.rage;
+                    if (Array.isArray(parsed.hd)) state.hd = parsed.hd;
+                    if (typeof parsed.javelins === 'number') state.javelins = parsed.javelins;
+                    if (parsed.deathSaves) state.deathSaves = parsed.deathSaves;
+                } catch (e) {
+                    console.error("Erro ao carregar estado salvo", e);
+                }
+            }
+            updateUI();
+        }
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            updateUI();
+        }
+
+        // -- ATUALIZAÇÕES DE INTERFACE --
+        function updateUI() {
+            // PV e Barra Visual
+            document.getElementById('current-hp-display').innerText = state.hp;
+            document.getElementById('temp-hp-display').innerText = state.tempHp;
+            
+            const hpPercent = Math.max(0, Math.min(100, (state.hp / MAX_HP) * 100));
+            const hpBar = document.getElementById('hp-bar');
+            hpBar.style.width = `${hpPercent}%`;
+            
+            const hpDisplay = document.getElementById('current-hp-display');
+            const deathBox = document.getElementById('death-saves-box');
+
+            if (state.hp === 0) {
+                hpDisplay.className = "text-5xl font-bold text-red-500 drop-shadow-md";
+                hpBar.className = "h-full bg-red-600 transition-all duration-500 ease-out";
+                deathBox.classList.remove('hidden');
+            } else if (state.hp <= Math.floor(MAX_HP / 4)) {
+                hpDisplay.className = "text-5xl font-bold text-amber-400 drop-shadow-md";
+                hpBar.className = "h-full bg-gradient-to-r from-red-600 to-amber-500 transition-all duration-500 ease-out";
+                deathBox.classList.add('hidden');
+            } else {
+                hpDisplay.className = "text-5xl font-bold text-white drop-shadow-md";
+                hpBar.className = "h-full bg-gradient-to-r from-emerald-700 to-emerald-400 transition-all duration-500 ease-out";
+                deathBox.classList.add('hidden');
+            }
+
+            // Atualiza Fúria
+            const rageContainer = document.getElementById('rage-container');
+            rageContainer.innerHTML = '';
+            let isRaging = false;
+            
+            state.rage.forEach((isUsed, index) => {
+                const dot = document.createElement('div');
+                dot.className = `resource-dot ${isUsed ? 'active' : 'used'}`;
+                if (isUsed) isRaging = true; 
+                
+                dot.innerHTML = `<i class="fa-solid fa-fire"></i>`;
+                dot.onclick = () => {
+                    state.rage[index] = !state.rage[index];
+                    saveState();
+                };
+                rageContainer.appendChild(dot);
+            });
+
+            const rageBadge = document.getElementById('rage-status-badge');
+            const rageTag = document.getElementById('machado-rage-tag');
+            const machadoDmg = document.getElementById('machado-dmg-text');
+
+            if (isRaging) {
+                rageBadge.innerText = "ATIVA (+2 DANO)";
+                rageBadge.className = "text-[0.65rem] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40";
+                rageTag.classList.remove('hidden');
+                machadoDmg.innerText = "1d10 + 7";
+            } else {
+                rageBadge.innerText = "INATIVA";
+                rageBadge.className = "text-[0.65rem] px-2 py-0.5 rounded font-bold bg-slate-900 text-slate-400";
+                rageTag.classList.add('hidden');
+                machadoDmg.innerText = "1d10 + 5";
+            }
+
+            // Atualiza Dados de Vida
+            const hdContainer = document.getElementById('hd-container');
+            hdContainer.innerHTML = '';
+            let availableHD = 0;
+            state.hd.forEach((isUsed, index) => {
+                if (!isUsed) availableHD++;
+                const dot = document.createElement('div');
+                dot.className = `resource-dot w-8 h-8 rounded-lg ${!isUsed ? 'active' : 'used'}`;
+                dot.innerHTML = `<i class="fa-solid fa-dice-d20"></i>`;
+                dot.onclick = () => {
+                    state.hd[index] = !state.hd[index];
+                    saveState();
+                };
+                hdContainer.appendChild(dot);
+            });
+            document.getElementById('hd-counter-text').innerText = `${availableHD} disponíveis`;
+
+            // Atualiza Azagaias
+            const javContainer = document.getElementById('javelin-dots');
+            javContainer.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                const dot = document.createElement('span');
+                const isAvailable = i < state.javelins;
+                dot.className = `w-4 h-4 rounded-full border cursor-pointer ${isAvailable ? 'bg-emerald-500 border-emerald-400' : 'bg-transparent border-slate-600'}`;
+                dot.onclick = () => {
+                    state.javelins = isAvailable ? i : i + 1;
+                    saveState();
+                };
+                javContainer.appendChild(dot);
+            }
+
+            // Atualiza Testes Contra a Morte
+            renderDeathSaves();
+        }
+
+        function renderDeathSaves() {
+            const sContainer = document.getElementById('death-successes').children;
+            const fContainer = document.getElementById('death-failures').children;
+
+            for (let i = 0; i < 3; i++) {
+                sContainer[i].className = `w-5 h-5 rounded-full border cursor-pointer flex items-center justify-center text-xs ${state.deathSaves.s[i] ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold' : 'border-emerald-700 bg-slate-900'}`;
+                sContainer[i].innerHTML = state.deathSaves.s[i] ? '✓' : '';
+
+                fContainer[i].className = `w-5 h-5 rounded-full border cursor-pointer flex items-center justify-center text-xs ${state.deathSaves.f[i] ? 'bg-red-500 border-red-400 text-white font-bold' : 'border-red-700 bg-slate-900'}`;
+                fContainer[i].innerHTML = state.deathSaves.f[i] ? '✗' : '';
+            }
+        }
+
+        function toggleDeathSave(type, index) {
+            state.deathSaves[type][index] = !state.deathSaves[type][index];
+            saveState();
+        }
+
+        // -- MANIPULAÇÃO DE VIDA --
+        function modifyHP(amount) {
+            if (amount < 0) {
+                // Aplica dano primeiro em PV Temporários se houver
+                let damage = Math.abs(amount);
+                if (state.tempHp > 0) {
+                    if (state.tempHp >= damage) {
+                        state.tempHp -= damage;
+                        damage = 0;
+                    } else {
+                        damage -= state.tempHp;
+                        state.tempHp = 0;
+                    }
+                }
+                state.hp -= damage;
+                if (state.hp < 0) state.hp = 0;
+            } else {
+                state.hp += amount;
+                if (state.hp > MAX_HP) state.hp = MAX_HP;
+            }
+            saveState();
+        }
+
+        function modifyTempHP(amount) {
+            state.tempHp = Math.max(0, state.tempHp + amount);
+            saveState();
+        }
+
+        function clearTempHP() {
+            state.tempHp = 0;
+            saveState();
+        }
+
+        // -- DESCANSO LONGO --
+        function openRestModal() {
+            document.getElementById('rest-modal').classList.add('show');
+        }
+
+        function closeRestModal() {
+            document.getElementById('rest-modal').classList.remove('show');
+        }
+
+        function confirmLongRest() {
+            state.hp = MAX_HP;
+            state.tempHp = 0;
+            state.rage = [false, false, false, false];
+            state.hd = [false, false, false, false, false, false, false, false];
+            state.javelins = 4;
+            state.deathSaves = { s: [false, false, false], f: [false, false, false] };
+            saveState();
+            closeRestModal();
+        }
+
+        // -- ABAS --
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-emerald-400', 'active');
+                btn.classList.add('text-slate-500');
+            });
+
+            if (btnElement) {
+                btnElement.classList.remove('text-slate-500');
+                btnElement.classList.add('text-emerald-400', 'active');
+            }
+        }
+
+        // -- ROLADOR DE DADOS E ANIMAÇÃO NA TELA --
+        function playDiceAnimation(finalNumber, callback) {
+            const overlay = document.getElementById('dice-anim-overlay');
+            const container = document.getElementById('dice-anim-container');
+            
+            overlay.classList.add('active');
+            container.classList.remove('show-result');
+            container.classList.add('bouncing');
+            
+            if (navigator.vibrate) navigator.vibrate(40);
+            
+            setTimeout(() => {
+                container.classList.remove('bouncing');
+                document.getElementById('dice-anim-text').innerText = finalNumber;
+                container.classList.add('show-result');
+                
+                if (navigator.vibrate) navigator.vibrate([25, 25]);
+
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                    if (callback) callback();
+                }, 750);
+            }, 1300);
+        }
+
+        function rollWeapon(weaponKey) {
+            const d20 = Math.floor(Math.random() * 20) + 1;
+            
+            playDiceAnimation(d20, () => {
+                const isRaging = state.rage.some(r => r === true);
+                const hitTotal = d20 + HIT_BONUS;
+                const rageBonus = isRaging ? 2 : 0;
+                const isCrit = (d20 === 20);
+                const isFumble = (d20 === 1);
+
+                let weaponName = "Machado de Prata Sepulcral";
+                let diceSides = 10;
+                let dmgType = "cortante";
+
+                if (weaponKey === 'azagaia') {
+                    weaponName = "Azagaia";
+                    diceSides = 6;
+                    dmgType = "perfurante";
+                } else if (weaponKey === 'adaga') {
+                    weaponName = "Adaga";
+                    diceSides = 4;
+                    dmgType = "perfurante";
+                }
+
+                // Cálculo do dano
+                const d1 = Math.floor(Math.random() * diceSides) + 1;
+                let dmgTotal = d1 + STR_MOD + rageBonus;
+                let breakdown = `1d${diceSides} (${d1}) + ${STR_MOD}${isRaging ? ' + 2 (Fúria)' : ''}`;
+
+                if (isCrit) {
+                    const d2 = Math.floor(Math.random() * diceSides) + 1;
+                    dmgTotal = d1 + d2 + STR_MOD + rageBonus;
+                    breakdown = `2d${diceSides} (${d1} + ${d2}) + ${STR_MOD}${isRaging ? ' + 2 (Fúria)' : ''}`;
+                }
+
+                // Montagem da Modal
+                document.getElementById('modal-title').innerText = "Ataque Realizado!";
+                document.getElementById('modal-weapon-name').innerText = `${weaponName} • Dano ${dmgType}`;
+                document.getElementById('modal-hit-box').classList.remove('hidden');
+
+                const hitResultEl = document.getElementById('modal-hit-result');
+                const hitBreakdownEl = document.getElementById('modal-hit-breakdown');
+                const dmgTitleEl = document.getElementById('modal-dmg-title');
+                const dmgResultEl = document.getElementById('modal-dmg-result');
+                const dmgBreakdownEl = document.getElementById('modal-dmg-breakdown');
+
+                dmgTitleEl.innerText = `Dano (${dmgType})`;
+
+                if (isCrit) {
+                    hitResultEl.innerHTML = `CRÍTICO!`;
+                    hitResultEl.className = "text-4xl font-bold text-amber-400 font-title animate-pulse";
+                    hitBreakdownEl.innerText = `Rolou 20 Natural (+${HIT_BONUS} = ${hitTotal})`;
+                    dmgResultEl.innerText = dmgTotal;
+                    dmgBreakdownEl.innerText = breakdown;
+                } else if (isFumble) {
+                    hitResultEl.innerHTML = `FALHA!`;
+                    hitResultEl.className = "text-4xl font-bold text-red-500 font-title";
+                    hitBreakdownEl.innerText = `Rolou 1 Natural`;
+                    dmgResultEl.innerText = "-";
+                    dmgBreakdownEl.innerText = "O golpe errou o alvo.";
+                } else {
+                    hitResultEl.innerText = hitTotal;
+                    hitResultEl.className = "text-4xl font-bold text-emerald-400 font-title";
+                    hitBreakdownEl.innerText = `Rolou ${d20} + ${HIT_BONUS}`;
+                    dmgResultEl.innerText = dmgTotal;
+                    dmgBreakdownEl.innerText = breakdown;
+                }
+
+                document.getElementById('dice-modal').classList.add('show');
+            });
+        }
+
+        function rollSpiritShield() {
+            const d6_1 = Math.floor(Math.random() * 6) + 1;
+            const d6_2 = Math.floor(Math.random() * 6) + 1;
+            const total = d6_1 + d6_2;
+
+            playDiceAnimation(total, () => {
+                document.getElementById('modal-title').innerText = "Escudo Espiritual!";
+                document.getElementById('modal-weapon-name').innerText = "Reação dos Guardiões Ancestrais";
+                document.getElementById('modal-hit-box').classList.add('hidden'); // Oculta acerto, pois é reação de cura/redução
+
+                document.getElementById('modal-dmg-title').innerText = "Dano Reduzido do Aliado";
+                document.getElementById('modal-dmg-result').innerText = `-${total} PV`;
+                document.getElementById('modal-dmg-breakdown').innerText = `Rolagem: 2d6 (${d6_1} + ${d6_2})`;
+
+                document.getElementById('dice-modal').classList.add('show');
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('dice-modal').classList.remove('show');
+        }
+
+        window.onload = () => {
+            loadState();
+        };
+    </script>
+</body>
+</html>
