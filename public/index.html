@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#020617">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sylvarion">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <title>Sylvarion - Assassino Verde - RPG App</title>
+
+    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="/app.css">
+
+
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="/fonts/fonts.css">
+
+    
+    <style>
+        /* ---------- Base ---------- */
+        :root { color-scheme: dark; }
+        body {
+            background-color: #020617;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        :focus-visible { outline: 2px solid #34d399; outline-offset: 2px; }
+
+        /* ---------- Componentes reutilizados ---------- */
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem; }
+        .sec-title {
+            font-family: 'Cinzel', serif; font-size: 0.875rem; font-weight: 600;
+            letter-spacing: 0.05em; text-transform: uppercase; color: #34d399;
+        }
+        .label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; }
+        .muted { color: #94a3b8; }
+
+        .btn {
+            min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+            border-radius: 0.5rem; border: 1px solid transparent; padding: 0 0.875rem;
+            font-size: 0.875rem; font-weight: 700; line-height: 1.2; text-align: center;
+            transition: background-color 0.15s, transform 0.1s; touch-action: manipulation;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: #047857; color: #fff; }
+        .btn-secondary { background: #334155; color: #f1f5f9; border-color: #475569; }
+        .btn-danger { background: #b91c1c; color: #fff; }
+        .btn-info { background: #1d4ed8; color: #fff; }
+        .btn-rage { background: #f59e0b; color: #020617; }
+        .btn-ghost { background: transparent; color: #cbd5e1; border-color: #475569; }
+        .btn[disabled] {
+            background: #1e293b; color: #94a3b8; border: 1px dashed #475569; cursor: not-allowed; transform: none;
+        }
+
+        /* Contadores (Fúria, dados de vida, azagaias, testes contra a morte): aceso = disponível/marcado */
+        .pips { display: flex; gap: 0.375rem; }
+        .pip {
+            flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: center;
+            border-radius: 0.5rem; border: 2px solid #475569; background: transparent; color: #94a3b8;
+            font-size: 0.875rem; transition: background-color 0.15s, border-color 0.15s; touch-action: manipulation;
+        }
+        .pip[aria-pressed="true"] { background: rgba(6, 95, 70, 0.55); border-color: #10b981; color: #6ee7b7; }
+        .pip.pip-rage[aria-pressed="true"] { background: rgba(120, 53, 15, 0.6); border-color: #f59e0b; color: #fcd34d; }
+        .pip.pip-fail[aria-pressed="true"] { background: rgba(127, 29, 29, 0.7); border-color: #ef4444; color: #fecaca; }
+        .pip:not([aria-pressed="true"]) :is(i, svg) { opacity: 0.35; }
+
+        /* Seletor de modo de rolagem */
+        .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; background: #0f172a; border: 1px solid #334155; border-radius: 0.625rem; padding: 0.25rem; }
+        .seg button {
+            min-height: 44px; border-radius: 0.375rem; font-size: 0.8125rem; font-weight: 700; color: #cbd5e1;
+            touch-action: manipulation;
+        }
+        .seg button[aria-checked="true"] { background: #334155; color: #fff; box-shadow: inset 0 0 0 1px #64748b; }
+        .seg button[data-mode="adv"][aria-checked="true"] { background: #047857; box-shadow: none; }
+        .seg button[data-mode="dis"][aria-checked="true"] { background: #b91c1c; box-shadow: none; }
+
+        /* Linhas que rolam um d20 */
+        .roll {
+            min-height: 44px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+            padding: 0.5rem 0.75rem; text-align: left; font-size: 0.875rem; color: #e2e8f0; touch-action: manipulation;
+        }
+        .roll:active { background: #334155; }
+        .roll .bonus { font-weight: 700; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .roll .bonus i { font-size: 0.75rem; color: #94a3b8; }
+        .roll.prof { color: #6ee7b7; font-weight: 700; background: rgba(6, 78, 59, 0.25); }
+
+        .chip-toggle {
+            min-height: 44px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0 0.75rem;
+            border-radius: 0.5rem; border: 1px solid #475569; color: #cbd5e1; font-size: 0.8125rem; font-weight: 700;
+            touch-action: manipulation;
+        }
+        .chip-toggle[aria-pressed="true"] { background: #f59e0b; border-color: #f59e0b; color: #020617; }
+
+        .resist { border: 1px dashed #475569; color: #94a3b8; border-radius: 0.5rem; padding: 0.5rem 0.25rem; text-align: center; font-size: 0.8125rem; font-weight: 700; }
+        .resist.on { border: 1px solid #f59e0b; background: rgba(120, 53, 15, 0.45); color: #fcd34d; }
+
+        /* ---------- Ícones próprios (dados e barra inferior) ---------- */
+        .ico { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; flex: none; }
+        .ico .on { fill: currentColor; fill-opacity: 0.55; stroke-width: 1.2; }
+        .ico .dot { fill: currentColor; stroke: none; }
+        .ico-slot { display: inline-flex; align-items: center; vertical-align: middle; flex: none; }
+        .ico-slot.hidden { display: none; }
+        .ico-slot.text-xs .ico { width: 0.875rem; height: 0.875rem; }
+        .ico-slot.text-2xl .ico { width: 1.75rem; height: 1.75rem; }
+        .die { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; flex: none; }
+        .die .pip-dot { fill: currentColor; stroke: none; }
+        .die-slot { display: inline-flex; align-items: center; gap: 0.125rem; vertical-align: middle; }
+        .nav-ico { width: 1.625rem; height: 1.625rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 0.125rem; }
+        .nav-ico .ico-fill { fill: none; }
+        .nav-btn[aria-selected="true"] .nav-ico .ico-fill { fill: currentColor; fill-opacity: 0.22; }
+        .line { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.625rem 0.75rem; font-size: 0.875rem; color: #e2e8f0; }
+        .line.prof { color: #6ee7b7; font-weight: 700; background: rgba(6, 78, 59, 0.25); }
+
+        /* ---------- Abas ---------- */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .nav-btn { color: #94a3b8; }
+        .nav-btn[aria-selected="true"] { color: #34d399; }
+        nav.bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] > summary .chev { transform: rotate(180deg); }
+        .chev { transition: transform 0.2s; }
+
+        /* ---------- Modais ---------- */
+        .modal-overlay { opacity: 0; pointer-events: none; transition: opacity 0.2s ease; backdrop-filter: blur(5px); }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .modal-content { transform: scale(0.95); transition: transform 0.2s ease-out; }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+
+        /* ---------- Dado em queda ---------- */
+        .dice-overlay {
+            position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.85);
+            display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px);
+        }
+        .dice-overlay.active { display: flex; }
+        .dice-container { position: relative; min-width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; }
+        .dice-container .die { width: 120px; height: 120px; stroke-width: 1; filter: drop-shadow(0 0 14px rgba(16,185,129,0.55)); transition: opacity 0.2s; }
+        .dice-container.multi .die { width: 84px; height: 84px; }
+        .bouncing { animation: bounceSpin 0.5s cubic-bezier(0.28, 0.84, 0.42, 1) forwards; }
+        @keyframes bounceSpin {
+            0% { transform: translateY(-300px) rotate(0deg) scale(0.5); opacity: 0; }
+            60% { transform: translateY(30px) rotate(300deg) scale(1.15); opacity: 1; }
+            100% { transform: translateY(0) rotate(360deg) scale(1.4); }
+        }
+        .dice-text {
+            position: absolute; font-size: 3rem; font-weight: 800; color: white;
+            font-family: 'Cinzel', serif; display: none; text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+        }
+        .dice-container.multi .dice-text { top: 100%; margin-top: 1.5rem; }
+        .dice-container.show-result .dice-text { display: block; }
+        .dice-container.show-result .die { opacity: 0.45; }
+
+        /* ---------- Aviso com Desfazer ---------- */
+        #toast {
+            position: fixed; left: 50%; bottom: calc(4.75rem + env(safe-area-inset-bottom)); z-index: 45;
+            transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s; width: calc(100% - 2rem); max-width: 26rem;
+        }
+        #toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-emerald-500 selection:text-white relative min-h-screen">
+
+    <!-- Cabeçalho fixo: nome + PV sempre à vista -->
+    <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 py-3 px-4 shadow-md">
+        <div class="max-w-md mx-auto flex justify-between items-center gap-3">
+            <div class="min-w-0">
+                <h1 class="font-title text-2xl font-bold text-emerald-400 leading-tight truncate">Sylvarion</h1>
+                <p class="text-xs text-slate-400 font-medium truncate">Assassino Verde · Bárbaro 8</p>
+            </div>
+            <button id="hdr-hp" data-act="goCombat" class="btn btn-ghost shrink-0 tabular-nums" aria-label="Pontos de vida. Ir para Combate">
+                <span id="hdr-rage" class="ico-slot text-amber-400 hidden" data-ico="fire" aria-hidden="true"></span>
+                <span class="ico-slot text-red-400" data-ico="heart" aria-hidden="true"></span>
+                <span id="hdr-hp-text">85 / 85</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-4">
+
+        <!-- ================= ABA 1: COMBATE ================= -->
+        <section id="tab-combat" class="tab-content active space-y-4" role="tabpanel" aria-labelledby="nav-combat">
+
+            <!-- Números de consulta rápida (2x2 em telas com menos de 360 px) -->
+            <div class="grid grid-cols-2 min-[360px]:grid-cols-4 gap-2 text-center">
+                <div class="card !px-1 !py-2">
+                    <span class="label block">CA</span>
+                    <span class="text-xl font-bold block">15</span>
+                    <span class="text-xs muted block">s/ armadura</span>
+                </div>
+                <button data-act="rollInitiative" class="card !p-2 !border-emerald-700 active:!bg-slate-700" aria-label="Rolar iniciativa, mais 2, com vantagem">
+                    <span class="label block">Iniciativa</span>
+                    <span class="text-xl font-bold block">+2 <span class="die-slot text-emerald-400" data-die="20"></span></span>
+                    <span class="text-xs text-emerald-400 font-bold block">vantagem</span>
+                </button>
+                <div class="card !p-2">
+                    <span class="label block">Desloc.</span>
+                    <span class="text-xl font-bold block">12 m</span>
+                    <span class="text-xs muted block">por turno</span>
+                </div>
+                <div class="card !p-2">
+                    <span class="label block">Percepção</span>
+                    <span class="text-xl font-bold block">13</span>
+                    <span class="text-xs muted block">passiva</span>
+                </div>
+            </div>
+
+            <!-- Pontos de vida -->
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-slate-900">
+                    <div id="hp-bar" class="h-full transition-all duration-500 ease-out" style="width: 100%;"></div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <h2 class="label uppercase tracking-wider">Pontos de vida</h2>
+                    <span id="temp-hp-chip" class="text-xs font-bold text-blue-300 bg-slate-900 border border-blue-900 rounded-lg px-2 py-1 hidden"></span>
+                </div>
+
+                <div class="flex justify-center items-baseline gap-2 my-2">
+                    <span id="current-hp-display" class="text-5xl font-bold tabular-nums">85</span>
+                    <span class="text-lg text-slate-400 font-bold">/ 85</span>
+                </div>
+
+                <!-- Valor livre: dano, cura ou PV temporário -->
+                <div class="grid grid-cols-4 gap-2">
+                    <label class="sr-only" for="hp-amount">Valor de dano, cura ou PV temporário</label>
+                    <input id="hp-amount" type="number" inputmode="numeric" min="0" placeholder="Valor"
+                           class="min-h-[44px] w-full rounded-lg bg-slate-900 border border-slate-600 text-center text-lg font-bold text-white placeholder:text-slate-400 placeholder:font-medium placeholder:text-sm">
+                    <button data-act="hpDamage" class="btn btn-danger !px-1">Dano</button>
+                    <button data-act="hpHeal" class="btn btn-primary !px-1">Cura</button>
+                    <button data-act="hpTemp" class="btn btn-info !px-1">Temp</button>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 mt-2">
+                    <button id="half-toggle" data-act="toggleHalf" class="chip-toggle" aria-pressed="false">
+                        <span class="ico-slot" data-ico="shieldHalf"></span> Metade do dano
+                    </button>
+                    <button id="temp-clear" data-act="clearTemp" class="btn btn-ghost hidden">Zerar PV temp</button>
+                </div>
+                <p id="half-hint" class="text-xs text-amber-300 mt-1 hidden">Em Fúria: metade contra dano cortante, perfurante e de concussão.</p>
+
+                <!-- Ajuste rápido sem teclado -->
+                <div class="grid grid-cols-6 gap-1 mt-3 pt-3 border-t border-slate-700" role="group" aria-label="Ajuste rápido de pontos de vida">
+                    <button data-act="hpQuick" data-n="-10" class="btn btn-secondary !px-0 !text-red-300">−10</button>
+                    <button data-act="hpQuick" data-n="-5" class="btn btn-secondary !px-0 !text-red-300">−5</button>
+                    <button data-act="hpQuick" data-n="-1" class="btn btn-secondary !px-0 !text-red-300">−1</button>
+                    <button data-act="hpQuick" data-n="1" class="btn btn-secondary !px-0 !text-emerald-300">+1</button>
+                    <button data-act="hpQuick" data-n="5" class="btn btn-secondary !px-0 !text-emerald-300">+5</button>
+                    <button data-act="hpQuick" data-n="10" class="btn btn-secondary !px-0 !text-emerald-300">+10</button>
+                </div>
+
+                <!-- Testes contra a morte (aparecem com 0 PV) -->
+                <div id="death-saves-box" class="mt-3 pt-3 border-t border-red-900 hidden">
+                    <p class="text-xs text-red-300 font-bold uppercase tracking-wider text-center mb-2">Testes contra a morte</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="label !text-emerald-300 block mb-1">Sucessos</span>
+                            <div class="pips" id="pips-dsS"></div>
+                        </div>
+                        <div>
+                            <span class="label !text-red-300 block mb-1">Fracassos</span>
+                            <div class="pips" id="pips-dsF"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fúria -->
+            <div id="rage-card" class="card">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="font-title text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                        <span class="ico-slot text-amber-400" data-ico="fire" aria-hidden="true"></span> Fúria
+                    </h2>
+                    <span id="rage-count" class="text-xs muted font-bold">4 de 4 usos</span>
+                </div>
+                <div class="pips mb-3" id="pips-rageLeft"></div>
+                <button id="rage-btn" data-act="toggleRage" class="btn btn-rage w-full">Entrar em Fúria</button>
+                <p id="rage-info" class="text-xs muted mt-2 leading-relaxed">Ação bônus. Dura 1 minuto. Sem conjurar nem manter concentração.</p>
+            </div>
+
+            <!-- Ataques -->
+            <div class="space-y-3">
+                <div class="flex justify-between items-baseline border-b border-slate-700 pb-1">
+                    <h2 class="sec-title">Ataques</h2>
+                    <span class="text-xs muted font-bold">2 ataques por ação · +8 para acertar</span>
+                </div>
+
+                <div>
+                    <div class="seg" role="radiogroup" aria-label="Modo de rolagem do d20" data-seg></div>
+                    <p class="text-xs muted mt-1 leading-relaxed">Ataque Imprudente: role com vantagem. Até seu próximo turno, ataques contra você também têm vantagem.</p>
+                </div>
+
+                <div id="weapons" class="space-y-3"></div>
+
+                <!-- Escudo Espiritual -->
+                <div class="card !border-blue-800 !bg-blue-950/40">
+                    <div class="flex justify-between items-start gap-2 mb-1">
+                        <h3 class="font-title text-base font-bold text-white flex items-center gap-2">
+                            <span class="ico-slot text-blue-400" data-ico="spiritShield" aria-hidden="true"></span> Escudo Espiritual
+                        </h3>
+                        <span class="text-xs font-bold text-blue-200 bg-blue-900 rounded px-2 py-1 shrink-0">Reação · 9 m</span>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-snug mb-3">Reduz em <b>2d6</b> o dano que outra criatura visível a até 9 m sofrer.</p>
+                    <p id="shield-hint" class="text-xs text-amber-300 font-bold mb-2">Só funciona em Fúria.</p>
+                    <button data-act="rollShield" class="btn btn-info w-full"><span class="die-slot" data-die="6"></span><span class="die-slot -ml-1" data-die="6"></span> Rolar redução (2d6)</button>
+                </div>
+            </div>
+
+            <!-- Defesa -->
+            <div class="card space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-title text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                        <span class="ico-slot text-emerald-400" data-ico="defense" aria-hidden="true"></span> Defesa
+                    </h2>
+                    <span class="text-xs muted font-bold">CA 15 = 10 + 2 (DES) + 3 (CON)</span>
+                </div>
+
+                <div>
+                    <span class="label block mb-1">Resistência a dano <span id="resist-state" class="font-medium">(só em Fúria)</span></span>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="resist">Cortante</div>
+                        <div class="resist">Perfurante</div>
+                        <div class="resist">Concussão</div>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="label block mb-1">Testes de resistência (toque para rolar)</span>
+                    <div class="grid grid-cols-3 gap-2" data-saves></div>
+                </div>
+
+                <ul class="text-sm text-slate-300 space-y-1 leading-snug">
+                    <li><b>DES com vantagem</b> contra armadilhas, magias e efeitos que você veja (Sentido de Perigo).</li>
+                    <li><b>FOR com vantagem</b> em Fúria. A ficha aplica sozinha.</li>
+                    <li><b>Vantagem</b> contra ser enfeitiçado e <b>imune</b> a sono mágico (Ascendência Feérica).</li>
+                </ul>
+            </div>
+
+            <!-- Descanso -->
+            <div class="card space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-title text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                        <span class="ico-slot text-emerald-400" data-ico="camp" aria-hidden="true"></span> Descanso
+                    </h2>
+                    <span id="hd-counter-text" class="text-xs muted font-bold">8 de 8 dados de vida (1d12 +3)</span>
+                </div>
+                <div class="pips" id="pips-hdLeft"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="hd-btn" data-act="spendHd" class="btn btn-primary !px-2"><span class="die-slot" data-die="12"></span> Gastar dado</button>
+                    <button data-act="openRest" class="btn btn-secondary !px-2">Descanso longo</button>
+                </div>
+            </div>
+
+            <!-- Guia tático -->
+            <details class="card !p-0 overflow-hidden">
+                <summary class="min-h-[44px] px-4 py-3 text-sm font-title font-bold text-emerald-400 cursor-pointer flex justify-between items-center gap-2 select-none">
+                    <span><span class="ico-slot mr-2" data-ico="tactics" aria-hidden="true"></span>Ordem de combate sugerida</span>
+                    <span class="ico-slot chev text-slate-400 text-xs" data-ico="chevron" aria-hidden="true"></span>
+                </summary>
+                <ol class="px-4 py-3 bg-slate-900/70 text-sm text-slate-300 space-y-2 border-t border-slate-700 leading-relaxed list-decimal list-inside">
+                    <li><b>Antes do combate:</b> Furtividade (+5) e Sobrevivência (+3) para ler o terreno, emboscadas e sinais do inimigo.</li>
+                    <li><b>1º turno:</b> ação bônus para entrar em <b>Fúria</b>; ação para <b>2 ataques</b> com o Machado (+8).</li>
+                    <li><b>Primeiro alvo atingido:</b> seus Protetores Ancestrais o assombram até o início do seu próximo turno. Ele ataca seus aliados com desvantagem, e eles têm resistência ao dano dele.</li>
+                    <li><b>Proteja o grupo:</b> guarde a reação para o Escudo Espiritual e tire 2d6 do dano de um aliado a até 9 m.</li>
+                </ol>
+            </details>
+        </section>
+
+        <!-- ================= ABA 2: STATUS ================= -->
+        <section id="tab-status" class="tab-content space-y-5" role="tabpanel" aria-labelledby="nav-status">
+
+            <dl class="card !p-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div class="flex justify-between gap-2"><dt class="label">Classe</dt><dd class="font-bold">Bárbaro 8</dd></div>
+                <div class="flex justify-between gap-2"><dt class="label">Raça</dt><dd class="font-bold">Meio-elfo</dd></div>
+                <div class="flex justify-between gap-2"><dt class="label">Proficiência</dt><dd class="font-bold text-emerald-400">+3</dd></div>
+                <div class="flex justify-between gap-2"><dt class="label">XP</dt><dd class="font-bold">34.000</dd></div>
+            </dl>
+
+            <div>
+                <h2 class="sec-title border-b border-slate-700 pb-1 mb-2">Atributos</h2>
+                <div class="grid grid-cols-3 gap-2" data-abilities></div>
+            </div>
+
+            <div>
+                <h2 class="sec-title border-b border-slate-700 pb-1 mb-2">Testes de resistência</h2>
+                <div class="grid grid-cols-3 gap-2" data-saves-static></div>
+                <p class="text-xs muted mt-2 leading-relaxed">DES tem vantagem contra armadilhas e efeitos visíveis (Sentido de Perigo). Vantagem contra ser enfeitiçado e imunidade a sono mágico (Ascendência Feérica).</p>
+            </div>
+
+            <div>
+                <h2 class="sec-title border-b border-slate-700 pb-1 mb-2">Perícias</h2>
+                <div id="skills" class="card !p-0 overflow-hidden divide-y divide-slate-700"></div>
+            </div>
+
+            <dl class="card text-sm space-y-3">
+                <div><dt class="label">Armaduras e armas</dt><dd class="text-slate-200">Armaduras leves, médias e escudos; armas simples e marciais.</dd></div>
+                <div><dt class="label">Ferramentas</dt><dd class="text-slate-200">Flauta (antecedente Forasteiro).</dd></div>
+                <div><dt class="label">Idiomas</dt><dd class="text-slate-200">Comum, Élfico, Orc e Silvestre.</dd></div>
+                <div><dt class="label">Sentidos</dt><dd class="text-slate-200">Visão no escuro 18 m · Percepção passiva 13.</dd></div>
+            </dl>
+        </section>
+
+        <!-- ================= ABA 3: PODERES ================= -->
+        <section id="tab-abilities" class="tab-content space-y-3" role="tabpanel" aria-labelledby="nav-abilities">
+            <h2 class="sec-title border-b border-slate-700 pb-1">Habilidades (D&amp;D 5E 2014)</h2>
+
+            <div class="card !rounded-l-none !border-l-4 !border-l-amber-500">
+                <div class="flex justify-between items-start gap-2 mb-1">
+                    <h3 class="font-bold text-white text-sm flex items-center gap-2"><span class="ico-slot text-amber-400" data-ico="fire" aria-hidden="true"></span> Fúria</h3>
+                    <span class="text-xs bg-amber-950 text-amber-200 px-2 py-1 rounded font-bold shrink-0">4 usos por descanso longo</span>
+                </div>
+                <p class="text-sm text-slate-300 leading-relaxed">Ação bônus para ativar; dura 1 minuto. Concede <b>+2 de dano</b> em ataques corpo a corpo com FOR, resistência a dano cortante, perfurante e de concussão, e vantagem em testes de FOR e testes de resistência de FOR. Não permite conjurar nem manter concentração.</p>
+            </div>
+
+            <div class="card !rounded-l-none !border-l-4 !border-l-emerald-500">
+                <div class="flex justify-between items-start gap-2 mb-1">
+                    <h3 class="font-bold text-white text-sm flex items-center gap-2"><span class="ico-slot text-emerald-400" data-ico="ghost" aria-hidden="true"></span> Protetores Ancestrais (nível 3)</h3>
+                    <span class="text-xs bg-emerald-950 text-emerald-200 px-2 py-1 rounded font-bold shrink-0">Em Fúria</span>
+                </div>
+                <p class="text-sm text-slate-300 leading-relaxed">O <b>primeiro alvo</b> que você acertar no <b>seu turno</b> é assombrado pelos guerreiros da sua linhagem até o início do seu próximo turno. Ele tem desvantagem em ataques contra qualquer criatura além de você e, se acertar outra criatura, ela recebe resistência ao dano daquele ataque.</p>
+            </div>
+
+            <div class="card !rounded-l-none !border-l-4 !border-l-blue-500">
+                <div class="flex justify-between items-start gap-2 mb-1">
+                    <h3 class="font-bold text-white text-sm flex items-center gap-2"><span class="ico-slot text-blue-400" data-ico="spiritShield" aria-hidden="true"></span> Escudo Espiritual (nível 6)</h3>
+                    <span class="text-xs bg-blue-950 text-blue-200 px-2 py-1 rounded font-bold shrink-0">Reação · 9 m</span>
+                </div>
+                <p class="text-sm text-slate-300 leading-relaxed">Em Fúria, quando outra criatura que você veja a até 9 m sofrer dano, use sua reação para interpor espíritos protetores e reduzir esse dano em <b>2d6</b>.</p>
+            </div>
+
+            <div class="card !rounded-l-none !border-l-4 !border-l-red-500">
+                <h3 class="font-bold text-white text-sm flex items-center gap-2 mb-1"><span class="ico-slot text-red-400" data-ico="reckless" aria-hidden="true"></span> Ataque Imprudente e Sentido de Perigo</h3>
+                <p class="text-sm text-slate-300 leading-relaxed mb-2"><b>Ataque Imprudente:</b> no primeiro ataque do turno, você pode atacar com vantagem em golpes corpo a corpo com FOR. Ataques contra você têm vantagem até seu próximo turno.</p>
+                <p class="text-sm text-slate-300 leading-relaxed"><b>Sentido de Perigo:</b> vantagem em testes de resistência de DES contra armadilhas, magias e efeitos que você veja, desde que não esteja cego, surdo ou incapacitado.</p>
+            </div>
+
+            <div class="card !rounded-l-none !border-l-4 !border-l-purple-500">
+                <h3 class="font-bold text-white text-sm flex items-center gap-2 mb-1"><span class="ico-slot text-purple-400" data-ico="runner" aria-hidden="true"></span> Traços físicos de Bárbaro</h3>
+                <ul class="text-sm text-slate-300 leading-relaxed space-y-1">
+                    <li><b>Ataque Extra (nível 5):</b> 2 ataques sempre que usar a ação de Ataque.</li>
+                    <li><b>Movimento Rápido:</b> +3 m de deslocamento sem armadura pesada (12 m no total).</li>
+                    <li><b>Instinto Selvagem (nível 7):</b> vantagem na iniciativa. Se for surpreendido, age normalmente desde que entre em Fúria antes de qualquer outra coisa.</li>
+                </ul>
+            </div>
+
+            <div class="card !rounded-l-none !border-l-4 !border-l-emerald-400">
+                <h3 class="font-bold text-white text-sm flex items-center gap-2 mb-1"><span class="ico-slot text-emerald-400" data-ico="axe" aria-hidden="true"></span> Machado de Prata Sepulcral (herança)</h3>
+                <p class="text-sm text-slate-300 leading-relaxed">Machado grande mágico de duas mãos, herdado do avô. Seus golpes contam como mágicos e atingem espíritos e criaturas incorpóreas que estejam no mesmo plano, superando resistências a armas comuns.</p>
+            </div>
+        </section>
+
+        <!-- ================= ABA 4: BIO ================= -->
+        <section id="tab-bio" class="tab-content space-y-4" role="tabpanel" aria-labelledby="nav-bio">
+
+            <h2 class="sec-title border-b border-slate-700 pb-1">Identidade e interpretação</h2>
+
+            <dl class="card text-sm grid grid-cols-2 gap-x-3 gap-y-2">
+                <div><dt class="label inline">Nome:</dt> <dd class="inline">Sylvarion</dd></div>
+                <div><dt class="label inline">Alcunha:</dt> <dd class="inline">Assassino Verde</dd></div>
+                <div><dt class="label inline">Idade:</dt> <dd class="inline">Mais de 80 anos</dd></div>
+                <div><dt class="label inline">Linhagem:</dt> <dd class="inline">Meio-elfo (2014)</dd></div>
+                <div><dt class="label inline">Cabelos:</dt> <dd class="inline">Brancos, longos</dd></div>
+                <div><dt class="label inline">Olhos:</dt> <dd class="inline">Cinza (sugestão)</dd></div>
+                <div><dt class="label inline">Pele:</dt> <dd class="inline">Clara, marcada</dd></div>
+                <div><dt class="label inline">Título:</dt> <dd class="inline">Último Herdeiro</dd></div>
+            </dl>
+
+            <div class="space-y-2">
+                <div class="card !p-3">
+                    <h3 class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Traços de personalidade</h3>
+                    <p class="text-sm text-slate-200 leading-relaxed">"Poucas palavras, muita paciência. Conhece a floresta como a própria pele; vigia antes de atacar."</p>
+                </div>
+                <div class="card !p-3">
+                    <h3 class="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">Ideais</h3>
+                    <p class="text-sm text-slate-200 leading-relaxed">"Vingança contra os orcs. Honrar os mortos e descobrir a verdade sobre sua linhagem."</p>
+                </div>
+                <div class="card !p-3">
+                    <h3 class="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1">Ligações</h3>
+                    <p class="text-sm text-slate-200 leading-relaxed">"Família assassinada; avô sobrevivente; espíritos ancestrais; machado herdado de Prata Sepulcral."</p>
+                </div>
+                <div class="card !p-3">
+                    <h3 class="text-xs text-red-400 font-bold uppercase tracking-wider mb-1">Defeitos</h3>
+                    <p class="text-sm text-slate-200 leading-relaxed">"A obsessão pelo rei orc pode fazê-lo sacrificar alianças, segurança e o próprio futuro."</p>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="sec-title border-b border-slate-700 pb-1 mb-2">Equipamentos e tesouro</h2>
+                <div class="card text-sm space-y-3">
+                    <div class="flex justify-between items-center gap-3 bg-slate-900 p-2 rounded-lg border border-yellow-800">
+                        <label for="coins" class="font-bold text-yellow-400 flex items-center gap-2"><span class="ico-slot" data-ico="coins" aria-hidden="true"></span> Peças de ouro</label>
+                        <input id="coins" type="number" inputmode="numeric" min="0"
+                               class="min-h-[44px] w-24 rounded-lg bg-slate-800 border border-slate-600 text-center text-base font-bold text-white">
+                    </div>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-300">
+                        <li><b>Machado grande de Prata Sepulcral</b> (herança mágica)</li>
+                        <li><b>4 azagaias</b> (arremesso ou corpo a corpo)</li>
+                        <li><b>Adaga</b> de caça</li>
+                        <li>Manto de pele escura e roupas de caçador</li>
+                        <li>Pacote de explorador (mochila, pederneira, tochas, rações, odre, corda)</li>
+                        <li>Lembranças da família e do avô</li>
+                        <li>Flauta rústica (instrumento musical)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div>
+                <label for="notes" class="sec-title block border-b border-slate-700 pb-1 mb-2">Anotações</label>
+                <textarea id="notes" rows="5" placeholder="Itens encontrados, nomes, pistas, o que ficou combinado com o mestre…"
+                          class="w-full rounded-xl bg-slate-800 border border-slate-600 p-3 text-base text-slate-100 placeholder:text-slate-400 placeholder:text-sm leading-relaxed"></textarea>
+                <p class="text-xs muted mt-1">Salvo neste aparelho enquanto você digita.</p>
+            </div>
+
+
+            <div id="sync-card" class="card space-y-2">
+                <div class="sec-title border-b border-slate-700 pb-1">Salvar na nuvem</div>
+                <p class="text-xs muted" id="sync-status">Sincronização desligada. Sua ficha fica só neste aparelho.</p>
+                <div id="sync-off" class="space-y-2">
+                    <button class="btn w-full" id="sync-new">Ativar e criar código</button>
+                    <div class="flex gap-2">
+                        <input id="sync-code-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Já tenho um código"
+                               class="flex-1 min-w-0 rounded-xl bg-slate-800 border border-slate-600 px-3 min-h-[44px] text-base text-slate-100 placeholder:text-slate-400 placeholder:text-sm">
+                        <button class="btn" id="sync-join">Usar</button>
+                    </div>
+                </div>
+                <div id="sync-on" class="space-y-2 hidden">
+                    <div class="text-xs muted">Seu código (use em outros aparelhos; não compartilhe):</div>
+                    <div id="sync-code" class="rounded-xl bg-slate-900 border border-slate-700 p-2 text-sm font-mono break-all select-all"></div>
+                    <div class="flex gap-2">
+                        <button class="btn flex-1" id="sync-now">Sincronizar agora</button>
+                        <button class="btn !bg-slate-700 flex-1" id="sync-off-btn">Desligar</button>
+                    </div>
+                </div>
+            </div>
+
+            <details class="card !p-0 overflow-hidden">
+                <summary class="min-h-[44px] px-4 py-3 text-sm font-title font-bold text-emerald-400 cursor-pointer flex justify-between items-center gap-2 select-none">
+                    <span><span class="ico-slot mr-2" data-ico="scroll" aria-hidden="true"></span>A lenda do Assassino Verde</span>
+                    <span class="ico-slot chev text-slate-400 text-xs" data-ico="chevron" aria-hidden="true"></span>
+                </summary>
+                <div class="px-4 py-3 bg-slate-900/80 text-sm text-slate-300 space-y-3 border-t border-slate-700 leading-relaxed">
+                    <p>Descendente de um guerreiro élfico lendário exilado por amar uma humana, ele nasceu trazendo os raros cabelos brancos de sua linhagem ancestral.</p>
+                    <p>Durante a guerra, seu avô enviou a família para outro continente em busca de refúgio. Contudo, uma violenta tempestade despedaçou o navio; sua mãe conseguiu resgatá-lo do mar com vida, mas faleceu exausta nas areias da praia. Pescadores humanos encontraram a criança e o criaram.</p>
+                    <p>Sylvarion viveu por décadas entre humanos comuns, envelhecendo a passos lentos e muitas vezes sendo visto como um forasteiro. Com o tempo, construiu sua própria família e encontrou uma paz duradoura em uma pacata aldeia na floresta.</p>
+                    <p>Toda essa paz foi brutalmente destruída em uma sangrenta incursão orc que ceifou a vida de todos a quem amava. A partir daquela cinza, nasceram emboscadas calculadas, caçadas implacáveis e o temido apelido: <b>Assassino Verde</b>. Seu único objetivo final passou a ser arrancar a cabeça do rei dos orcs.</p>
+                    <p>Ao quase sucumbir em uma batalha para alcançá-lo, ganhou a profunda cicatriz que corta seu rosto e teve sua alma levada ao limiar do reino dos mortos, onde reencontrou seus entes queridos. Ao retornar milagrosamente à vida, despertou consigo os <b>Guardiões Ancestrais</b>. Mais tarde, descobriu que seu avô sobrevivera como lutador de arena e herdou dele o Machado de Prata Sepulcral. Agora, caminha na corda bamba entre ser apenas vingança ou cumprir o destino de herdeiro.</p>
+                </div>
+            </details>
+        </section>
+    </main>
+
+    <!-- Aviso com Desfazer -->
+    <div id="toast" role="status" aria-live="polite">
+        <div class="flex items-center justify-between gap-3 bg-slate-100 text-slate-900 rounded-xl shadow-2xl pl-4 pr-1 py-1">
+            <span id="toast-msg" class="text-sm font-bold"></span>
+            <button id="toast-undo" data-act="undo" class="btn !bg-transparent !text-emerald-800 shrink-0">Desfazer</button>
+        </div>
+    </div>
+
+    <!-- Navegação inferior -->
+    <nav class="bottom fixed bottom-0 left-0 w-full bg-slate-900 border-t border-slate-800 z-40 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+        <div class="max-w-md mx-auto flex justify-around items-stretch h-16" role="tablist" aria-label="Seções da ficha">
+            <button id="nav-combat" data-act="tab" data-tab="combat" role="tab" aria-selected="true" aria-controls="tab-combat" class="nav-btn flex flex-col items-center justify-center w-full">
+                <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 3.5 18 17"/><path d="M19.5 3.5 6 17"/><path d="M13.4 16.4 17.4 12.4"/><path d="M10.6 16.4 6.6 12.4"/><circle cx="19.4" cy="19" r="1.1"/><circle cx="4.6" cy="19" r="1.1"/></svg><span class="text-xs font-bold">Combate</span>
+            </button>
+            <button id="nav-status" data-act="tab" data-tab="status" role="tab" aria-selected="false" aria-controls="tab-status" class="nav-btn flex flex-col items-center justify-center w-full">
+                <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 20.2 7.2V16.8L12 21.5 3.8 16.8V7.2Z"/><path class="ico-fill" d="M12 7 17 9.6 17.8 15 12 17.8 7.2 14.2 7.6 9.4Z"/></svg><span class="text-xs font-bold">Status</span>
+            </button>
+            <button id="nav-abilities" data-act="tab" data-tab="abilities" role="tab" aria-selected="false" aria-controls="tab-abilities" class="nav-btn flex flex-col items-center justify-center w-full">
+                <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path class="ico-fill" d="M12 2.5 14.3 9.7 21.5 12 14.3 14.3 12 21.5 9.7 14.3 2.5 12 9.7 9.7Z"/></svg><span class="text-xs font-bold">Poderes</span>
+            </button>
+            <button id="nav-bio" data-act="tab" data-tab="bio" role="tab" aria-selected="false" aria-controls="tab-bio" class="nav-btn flex flex-col items-center justify-center w-full">
+                <svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path class="ico-fill" d="M12 6C10 4.5 7 4 3.5 4.5V18.5C7 18 10 18.5 12 20 14 18.5 17 18 20.5 18.5V4.5C17 4 14 4.5 12 6Z"/><path d="M12 6V20"/></svg><span class="text-xs font-bold">Bio</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Resultado da rolagem -->
+    <div id="dice-modal" class="modal-overlay fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" data-act="closeResult">
+        <div class="modal-content bg-slate-900 border-2 border-emerald-700 rounded-2xl p-5 w-full max-w-sm text-center" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <h2 id="modal-title" class="font-title text-2xl font-bold text-white mb-1"></h2>
+            <p id="modal-sub" class="text-sm text-slate-300 mb-4"></p>
+            <div id="modal-rows" class="space-y-3"></div>
+            <div class="grid grid-cols-2 gap-2 mt-5">
+                <button id="modal-again" data-act="rollAgain" class="btn btn-primary"><span class="ico-slot" data-ico="redo" aria-hidden="true"></span> Rolar de novo</button>
+                <button id="modal-close" data-act="closeResult" class="btn btn-secondary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dado em queda (toque para pular) -->
+    <div id="dice-anim-overlay" class="dice-overlay" data-act="skipDice" aria-hidden="true">
+        <div id="dice-anim-container" class="dice-container text-emerald-500">
+            <div id="dice-anim-dice" class="flex items-center justify-center gap-2"></div>
+            <span id="dice-anim-text" class="dice-text">20</span>
+        </div>
+    </div>
+
+    <!-- Descanso longo -->
+    <div id="rest-modal" class="modal-overlay fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" data-act="closeRest">
+        <div class="modal-content bg-slate-900 border-2 border-emerald-700 rounded-2xl p-5 w-full max-w-xs text-center" role="dialog" aria-modal="true" aria-labelledby="rest-title">
+            <div class="w-14 h-14 bg-emerald-950 border border-emerald-700 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-400 text-2xl">
+                <span class="ico-slot" data-ico="camp" aria-hidden="true"></span>
+            </div>
+            <h2 id="rest-title" class="font-title text-xl font-bold text-white mb-2">Descanso longo</h2>
+            <p class="text-sm text-slate-300 leading-relaxed mb-5">Recupera os <b>85 pontos de vida</b>, as <b>4 Fúrias</b>, as <b>4 azagaias</b> e os <b>8 dados de vida</b>. Encerra a Fúria e zera os PV temporários.</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button data-act="closeRest" class="btn btn-secondary">Cancelar</button>
+                <button id="rest-confirm" data-act="confirmRest" class="btn btn-primary">Descansar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===================== DADOS DO PERSONAGEM (único lugar para editar ao subir de nível) =====================
+        const CHAR = {
+            maxHp: 85,
+            prof: 3,                       // Bárbaro 8
+            mods: { FOR: 5, DES: 2, CON: 3, INT: -1, SAB: 0, CAR: 0 },
+            scores: { FOR: 20, DES: 14, CON: 16, INT: 8, SAB: 10, CAR: 10 },
+            saveProf: ['FOR', 'CON'],
+            rageMax: 4, rageDmg: 2,
+            hdMax: 8, hdDie: 12,
+            javMax: 4,
+            initiativeAdv: true            // Instinto Selvagem
+        };
+        const ABIL = { FOR: 'Força', DES: 'Destreza', CON: 'Constituição', INT: 'Inteligência', SAB: 'Sabedoria', CAR: 'Carisma' };
+        // [nome, atributo, proficiente]
+        const SKILLS = [
+            ['Atletismo', 'FOR', true], ['Furtividade', 'DES', true], ['Intimidação', 'CAR', true],
+            ['Intuição', 'SAB', true], ['Percepção', 'SAB', true], ['Sobrevivência', 'SAB', true],
+            ['Acrobacia', 'DES', false], ['Arcanismo', 'INT', false], ['Atuação', 'CAR', false],
+            ['Blefar', 'CAR', false], ['História', 'INT', false], ['Investigação', 'INT', false],
+            ['Lidar com Animais', 'SAB', false], ['Medicina', 'SAB', false], ['Natureza', 'INT', false],
+            ['Persuasão', 'CAR', false], ['Prestidigitação', 'DES', false], ['Religião', 'INT', false]
+        ];
+        const WEAPONS = [
+            { id: 'machado', name: 'Machado de Prata Sepulcral', tag: 'Mágico', props: 'Duas mãos · alcance 1,5 m · atinge espíritos incorpóreos', die: 10, type: 'cortante', thrown: false },
+            { id: 'azagaia', name: 'Azagaia', props: 'Arremesso 9 m / 36 m', die: 6, type: 'perfurante', thrown: true, ammo: true },
+            { id: 'adaga', name: 'Adaga', props: 'Leve · acuidade · arremesso 6 m / 18 m', die: 4, type: 'perfurante', thrown: true }
+        ];
+        const HIT_BONUS = CHAR.mods.FOR + CHAR.prof;   // +8
+        const MODE_LABEL = { normal: 'Normal', adv: 'Vantagem', dis: 'Desvantagem' };
+
+        // Ícones de dado desenhados à mão (não dependem de fonte externa)
+        const DIE_PATHS = {
+            4:  '<path d="M12 3 22 20.5H2Z"/><path d="M12 3V14M2 20.5 12 14 22 20.5"/>',
+            6:  '<rect x="3" y="3" width="18" height="18" rx="4"/><circle class="pip-dot" cx="8.5" cy="8.5" r="1.4"/><circle class="pip-dot" cx="15.5" cy="8.5" r="1.4"/><circle class="pip-dot" cx="12" cy="12" r="1.4"/><circle class="pip-dot" cx="8.5" cy="15.5" r="1.4"/><circle class="pip-dot" cx="15.5" cy="15.5" r="1.4"/>',
+            8:  '<path d="M12 2 21.5 12 12 22 2.5 12Z"/><path d="M12 6.5 17 15.5H7Z"/><path d="M12 6.5V2M7 15.5 2.5 12M17 15.5 21.5 12"/>',
+            10: '<path d="M12 2 21 9.5 12 22 3 9.5Z"/><path d="M3 9.5 12 13 21 9.5M12 13V22M12 2V13"/>',
+            12: '<path d="M12 2 21.5 9 18 20.5H6L2.5 9Z"/><path d="M12 7.8 16.3 10.9 14.7 16.1H9.3L7.7 10.9Z"/><path d="M12 2V7.8M21.5 9 16.3 10.9M18 20.5 14.7 16.1M6 20.5 9.3 16.1M2.5 9 7.7 10.9"/>',
+            20: '<path d="M12 2 20.66 7V17L12 22 3.34 17V7Z"/><path d="M12 7.2 16.6 16H7.4Z"/><path d="M12 7.2V2M12 7.2 3.34 7M12 7.2 20.66 7M7.4 16 3.34 17M7.4 16 12 22M16.6 16 20.66 17M16.6 16 12 22"/>'
+        };
+        // Ícones da ficha, desenhados à mão: nada depende de fonte externa
+        const SHIELD = '<path d="M12 2.5 20 5.5v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10v-6Z"/>';
+        const ICONS = {
+            fire: '<path d="M12 2.5c.9 3.2 6 5.6 6 11.2a6 6 0 0 1-12 0c0-2.6 1.3-4.4 2.8-5.6.1 1.6.7 2.6 1.6 3 .2-3 .3-5.4 1.6-8.6Z"/><path d="M12 19c-1.6 0-2.7-1-2.7-2.4 0-1.6 1.6-2.2 2.7-4 1.1 1.8 2.7 2.4 2.7 4 0 1.4-1.1 2.4-2.7 2.4Z"/>',
+            heart:       '<path d="M12 20.5S3.5 15.2 3.5 9.3A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.3c0 5.9-8.5 11.2-8.5 11.2Z"/>',
+            shieldHalf:  SHIELD + '<path class="on" d="M12 2.5v19c-4.5-1.5-8-5-8-10v-6Z"/>',
+            defense:     SHIELD + '<path d="M8.5 10.5 12 14l3.5-3.5"/>',
+            spiritShield: SHIELD + '<path d="M9.6 16.2v-4.6a2.4 2.4 0 0 1 4.8 0v4.6l-1.2-.9-1.2.9-1.2-.9Z"/><circle class="dot" cx="11" cy="11.6" r=".7"/><circle class="dot" cx="13" cy="11.6" r=".7"/>',
+            camp:        '<path d="M2.5 20.5 12 4l9.5 16.5Z"/><path d="M9 20.5 12 14l3 6.5"/>',
+            tactics:     '<path d="M6 21.5V3"/><path d="M6 4.5h12.5L16 8.5l2.5 4H6"/>',
+            chevron:     '<path d="M6 9.5 12 15.5 18 9.5"/>',
+            ghost:       '<path d="M5.5 20.5V11a6.5 6.5 0 0 1 13 0v9.5l-2.6-2.2-2.1 2.2-2.1-2.2-2.1 2.2-2.1-2.2Z"/><circle class="dot" cx="9.5" cy="11" r="1.1"/><circle class="dot" cx="14.5" cy="11" r="1.1"/>',
+            reckless:    '<path d="M13.5 2.5 5 13.5h6l-1.2 8 8.7-11.5h-6.2Z"/>',
+            runner:      '<circle cx="15" cy="4.6" r="1.7"/><path d="M14 8.5 11.5 14M14 9l4.5 2M13.5 9 9.5 10.5M11.5 14l4 2.5-1.4 4.5M11.5 14l-3 3.5-3.5 1.5"/>',
+            axe:         '<path d="M12 3v18"/><path d="M12 4.2C15.2 3.2 18.6 2.8 21.5 3.2c-.9 2.9-.9 5.9 0 8.8-2.9.4-6.3 0-9.5-1.7Z"/><path d="M12 4.2C8.8 3.2 5.4 2.8 2.5 3.2c.9 2.9.9 5.9 0 8.8 2.9.4 6.3 0 9.5-1.7Z"/>',
+            coins: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.6"/><path d="M12 8.8 14.2 12 12 15.2 9.8 12Z"/>',
+            scroll:      '<path d="M6 3.5h9l4 4v13H6Z"/><path d="M15 3.5v4h4M9 12h7M9 15.5h7"/>',
+            redo:        '<path d="M19.5 12a7.5 7.5 0 1 1-2.3-5.4"/><path d="M19.5 4v4.5H15"/>',
+            check:       '<path d="M5 12.5 10 17.5 19 7"/>',
+            xmark:       '<path d="M6 6l12 12M18 6 6 18"/>',
+            proficient:  '<circle cx="12" cy="12" r="9"/><path d="M7.8 12.3 10.7 15.2 16.3 9.3"/>',
+            javelin: '<path d="M4.5 19.5 16 8"/><path class="on" d="M16.2 7.8 14 4.8 21 3 19.2 10Z"/><circle class="dot" cx="4.3" cy="19.7" r="1.3"/><path d="M12.5 11.5l-2.2-2.2"/>'
+        };
+        const icoSvg = name => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
+        const ico = (name, cls = '') => `<span class="ico-slot ${cls}">${icoSvg(name)}</span>`;
+        const dieSvg = (sides, cls = '') => `<svg class="die ${cls}" data-d="${sides}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${DIE_PATHS[sides]}</svg>`;
+
+        // ===================== ESTADO =====================
+        const STORAGE_KEY = 'sylvarion_ficha_v3';
+        const OLD_KEY = 'assassino_verde_v2_state';   // versão anterior: lida uma vez para não perder a sessão
+        const DEFAULTS = {
+            hp: CHAR.maxHp, tempHp: 0,
+            rageLeft: CHAR.rageMax, raging: false,
+            hdLeft: CHAR.hdMax, javelins: CHAR.javMax,
+            dsS: 0, dsF: 0,
+            coins: 10, notes: '', rollMode: 'normal'
+        };
+        const PIP_MAX = { rageLeft: CHAR.rageMax, hdLeft: CHAR.hdMax, javelins: CHAR.javMax, dsS: 3, dsF: 3 };
+        let state = { ...DEFAULTS };
+        let half = false;          // "metade do dano": vale para o próximo dano e desliga sozinho
+        let undoSnapshot = null;
+        let lastRoll = null;
+        let lastFocus = null;
+
+        const $ = id => document.getElementById(id);
+        const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+        const fmt = n => (n >= 0 ? '+' + n : '−' + Math.abs(n));
+        const d = sides => Math.floor(Math.random() * sides) + 1;
+        const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+        function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* modo privado: segue sem salvar */ } }
+
+        function sanitize(s) {
+            const int = (v, lo, hi, def) => (Number.isFinite(+v) ? clamp(Math.round(+v), lo, hi) : def);
+            return {
+                hp: int(s.hp, 0, CHAR.maxHp, DEFAULTS.hp),
+                tempHp: int(s.tempHp, 0, 999, 0),
+                rageLeft: int(s.rageLeft, 0, CHAR.rageMax, CHAR.rageMax),
+                raging: s.raging === true,
+                hdLeft: int(s.hdLeft, 0, CHAR.hdMax, CHAR.hdMax),
+                javelins: int(s.javelins, 0, CHAR.javMax, CHAR.javMax),
+                dsS: int(s.dsS, 0, 3, 0), dsF: int(s.dsF, 0, 3, 0),
+                coins: int(s.coins, 0, 9999999, DEFAULTS.coins),
+                notes: typeof s.notes === 'string' ? s.notes : '',
+                rollMode: MODE_LABEL[s.rollMode] ? s.rollMode : 'normal'
+            };
+        }
+
+        // Converte o formato antigo (listas de verdadeiro/falso) para o novo (contagens)
+        function migrateOld(old) {
+            const count = arr => (Array.isArray(arr) ? arr.filter(Boolean).length : 0);
+            return {
+                hp: old.hp, tempHp: old.tempHp,
+                rageLeft: CHAR.rageMax - count(old.rage),
+                raging: false,                                  // antes "gasta" e "ativa" eram a mesma coisa; começa encerrada
+                hdLeft: CHAR.hdMax - count(old.hd),
+                javelins: old.javelins,
+                dsS: count(old.deathSaves && old.deathSaves.s),
+                dsF: count(old.deathSaves && old.deathSaves.f)
+            };
+        }
+
+        function loadState() {
+            try {
+                const saved = storageGet(STORAGE_KEY);
+                if (saved) {
+                    state = sanitize({ ...DEFAULTS, ...JSON.parse(saved) });
+                } else {
+                    const old = storageGet(OLD_KEY);
+                    if (old) state = sanitize({ ...DEFAULTS, ...migrateOld(JSON.parse(old)) });
+                }
+            } catch (e) {
+                console.error('Estado salvo ilegível; usando valores iniciais.', e);
+                state = { ...DEFAULTS };
+            }
+        }
+        function persist() { storageSet(STORAGE_KEY, JSON.stringify(state)); storageSet(LOCAL_AT, String(Date.now())); schedulePush(); }
+
+        // Toda mudança de estado passa por aqui: guarda o "antes", aplica, salva, redesenha e avisa.
+        function commit(mutate, message) {
+            undoSnapshot = JSON.stringify(state);
+            mutate();
+            state = sanitize(state);
+            persist();
+            render();
+            if (message) toast(message, true);
+        }
+
+        // ===================== AVISO (com Desfazer) =====================
+        let toastTimer = null;
+        function toast(message, canUndo) {
+            $('toast-msg').textContent = message;
+            $('toast-undo').classList.toggle('hidden', !canUndo);
+            $('toast').classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => $('toast').classList.remove('show'), canUndo ? 6000 : 3500);
+        }
+
+        // ===================== DESENHO =====================
+        function setPips(key, cls, icon, noun) {
+            const box = $('pips-' + key), total = PIP_MAX[key], value = state[key];
+            if (box.children.length !== total) {
+                box.innerHTML = Array.from({ length: total }, (_, i) =>
+                    `<button class="pip ${cls}" data-act="pip" data-key="${key}" data-i="${i}">${icon.startsWith('die:') ? dieSvg(+icon.slice(4)) : ico(icon.slice(4))}</button>`).join('');
+            }
+            [...box.children].forEach((b, i) => {
+                const on = i < value;
+                b.setAttribute('aria-pressed', on);
+                b.setAttribute('aria-label', `${noun} ${i + 1} de ${total}: ${on ? 'marcado' : 'vazio'}`);
+            });
+        }
+
+        function weaponDamageText(w, melee) {
+            const bonus = CHAR.mods.FOR + (melee && state.raging ? CHAR.rageDmg : 0);
+            return `1d${w.die} + ${bonus} ${w.type}`;
+        }
+
+        function buildStatic() {
+            // Seletor de modo de rolagem (só no Combate, onde há ataques e testes)
+            document.querySelectorAll('[data-seg]').forEach(seg => {
+                seg.innerHTML = Object.keys(MODE_LABEL).map(m =>
+                    `<button role="radio" data-act="mode" data-mode="${m}">${MODE_LABEL[m]}</button>`).join('');
+            });
+            // Combate > Defesa: testes de resistência rolam (úteis em combate)
+            document.querySelectorAll('[data-saves]').forEach(box => {
+                box.innerHTML = Object.keys(ABIL).map(a => {
+                    const prof = CHAR.saveProf.includes(a);
+                    const bonus = CHAR.mods[a] + (prof ? CHAR.prof : 0);
+                    return `<button class="roll card !p-2 ${prof ? '!border-emerald-600' : ''}" data-act="rollCheck" data-kind="save" data-abil="${a}" data-bonus="${bonus}"
+                                aria-label="Rolar teste de resistência de ${ABIL[a]}, ${fmt(bonus)}${prof ? ', proficiente' : ''}">
+                                <span class="font-bold ${prof ? 'text-emerald-300' : ''}">${a}</span><span class="bonus">${fmt(bonus)}</span></button>`;
+                }).join('');
+            });
+            // Status: números de consulta, sem rolagem
+            document.querySelector('[data-abilities]').innerHTML = Object.keys(ABIL).map(a =>
+                `<div class="card !p-2 text-center">
+                    <span class="label block">${ABIL[a]}</span>
+                    <span class="text-2xl font-bold block leading-tight">${CHAR.scores[a]}</span>
+                    <span class="text-sm font-bold text-emerald-300">${fmt(CHAR.mods[a])}</span>
+                </div>`).join('');
+            document.querySelector('[data-saves-static]').innerHTML = Object.keys(ABIL).map(a => {
+                const prof = CHAR.saveProf.includes(a);
+                const bonus = CHAR.mods[a] + (prof ? CHAR.prof : 0);
+                return `<div class="card !p-2 flex justify-between items-center ${prof ? '!border-emerald-600' : ''}" data-abil="${a}" data-bonus="${bonus}">
+                            <span class="font-bold ${prof ? 'text-emerald-300' : ''}">${a}${prof ? '<span class="sr-only"> (proficiente)</span>' : ''}</span>
+                            <span class="font-bold tabular-nums">${fmt(bonus)}</span></div>`;
+            }).join('');
+            $('skills').innerHTML = SKILLS.map(([name, a, prof]) => {
+                const bonus = CHAR.mods[a] + (prof ? CHAR.prof : 0);
+                return `<div class="line ${prof ? 'prof' : ''}" data-name="${name}" data-bonus="${bonus}">
+                            <span>${prof ? ico('proficient', 'text-emerald-400 mr-2') : ''}${name} <span class="muted font-normal">(${a})</span>${prof ? '<span class="sr-only">, proficiente</span>' : ''}</span>
+                            <span class="font-bold tabular-nums">${fmt(bonus)}</span></div>`;
+            }).join('');
+            // Armas: d20 no botão (acerto) e o dado de dano ao lado do dano
+            $('weapons').innerHTML = WEAPONS.map((w, i) => `
+                <div class="card ${i === 0 ? '!border-emerald-700' : ''}">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="font-title text-base font-bold text-white">${w.name}</h3>
+                        ${w.tag ? `<span class="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 rounded font-bold">${w.tag}</span>` : ''}
+                    </div>
+                    <p class="text-xs muted mt-1">${w.props}</p>
+                    <p class="text-sm text-slate-200 mt-2 flex items-center gap-1.5">${dieSvg(w.die, 'text-slate-400')}<span>Dano: <b class="text-white" data-dmg="${w.id}"></b><span data-rage-tag="${w.id}" class="text-amber-300 font-bold hidden"> ${w.thrown ? `(corpo a corpo: +${CHAR.rageDmg} em Fúria)` : '(Fúria)'}</span></span></p>
+                    ${w.ammo ? `<div class="flex items-center gap-3 mt-2">
+                        <span id="jav-count" class="label shrink-0"></span>
+                        <div class="pips flex-1" id="pips-javelins"></div>
+                        <button data-act="collectJavelins" id="jav-collect" class="btn btn-ghost !px-2 shrink-0">Recolher</button>
+                    </div>` : ''}
+                    <div class="grid ${w.thrown ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mt-3">
+                        <button class="btn ${i === 0 ? 'btn-primary' : 'btn-secondary'} !px-2" data-act="rollWeapon" data-weapon="${w.id}" data-melee="1">
+                            ${dieSvg(20)} ${w.thrown ? 'Corpo a corpo' : 'Atacar'}</button>
+                        ${w.thrown ? `<button class="btn btn-secondary !px-2" data-act="rollWeapon" data-weapon="${w.id}" data-melee="0" data-throw="${w.id}">
+                            ${dieSvg(20)} <span>Arremessar</span></button>` : ''}
+                    </div>
+                </div>`).join('');
+            document.querySelectorAll('[data-die]').forEach(el => { el.innerHTML = dieSvg(+el.dataset.die); });
+            document.querySelectorAll('[data-ico]').forEach(el => { el.innerHTML = icoSvg(el.dataset.ico); });
+        }
+
+        function render() {
+            // --- PV ---
+            const pct = clamp((state.hp / CHAR.maxHp) * 100, 0, 100);
+            const hpEl = $('current-hp-display'), bar = $('hp-bar');
+            hpEl.textContent = state.hp;
+            bar.style.width = pct + '%';
+            const down = state.hp === 0, low = !down && state.hp <= Math.floor(CHAR.maxHp / 4);
+            hpEl.className = 'text-5xl font-bold tabular-nums ' + (down ? 'text-red-400' : low ? 'text-amber-400' : 'text-white');
+            bar.className = 'h-full transition-all duration-500 ease-out ' + (down ? 'bg-red-600' : low ? 'bg-amber-500' : 'bg-emerald-500');
+            $('death-saves-box').classList.toggle('hidden', !down);
+            setPips('dsS', '', 'ico:check', 'Sucesso');
+            setPips('dsF', 'pip-fail', 'ico:xmark', 'Fracasso');
+
+            const hasTemp = state.tempHp > 0;
+            $('temp-hp-chip').textContent = `+${state.tempHp} PV temporários`;
+            $('temp-hp-chip').classList.toggle('hidden', !hasTemp);
+            $('temp-clear').classList.toggle('hidden', !hasTemp);
+
+            $('half-toggle').setAttribute('aria-pressed', half);
+            $('half-hint').classList.toggle('hidden', !state.raging);
+
+            // --- Cabeçalho ---
+            $('hdr-hp-text').textContent = `${state.hp}${hasTemp ? ' +' + state.tempHp : ''} / ${CHAR.maxHp}`;
+            $('hdr-hp').classList.toggle('!border-red-500', down);
+            $('hdr-hp').classList.toggle('!border-amber-500', low);
+            $('hdr-rage').classList.toggle('hidden', !state.raging);
+            $('hdr-hp').setAttribute('aria-label', `${state.hp} de ${CHAR.maxHp} pontos de vida${state.raging ? ', em Fúria' : ''}. Ir para Combate`);
+
+            // --- Fúria ---
+            setPips('rageLeft', 'pip-rage', 'ico:fire', 'Uso de Fúria');
+            $('rage-count').textContent = `${state.rageLeft} de ${CHAR.rageMax} usos`;
+            const rb = $('rage-btn');
+            $('rage-card').classList.toggle('!border-amber-500', state.raging);
+            if (state.raging) {
+                rb.textContent = 'Encerrar Fúria';
+                rb.className = 'btn btn-secondary w-full';
+                rb.disabled = false;
+                $('rage-info').innerHTML = '<b class="text-amber-300">Em Fúria:</b> +2 de dano corpo a corpo com FOR, resistência a cortante, perfurante e concussão, vantagem em testes de FOR.';
+            } else {
+                rb.textContent = state.rageLeft > 0 ? 'Entrar em Fúria' : 'Sem usos até o descanso longo';
+                rb.className = 'btn btn-rage w-full';
+                rb.disabled = state.rageLeft === 0;
+                $('rage-info').textContent = 'Ação bônus. Dura 1 minuto. Sem conjurar nem manter concentração.';
+            }
+            $('shield-hint').classList.toggle('hidden', state.raging);
+            document.querySelectorAll('.resist').forEach(el => el.classList.toggle('on', state.raging));
+            $('resist-state').textContent = state.raging ? '(ativa)' : '(só em Fúria)';
+
+            // --- Armas ---
+            WEAPONS.forEach(w => {
+                document.querySelector(`[data-dmg="${w.id}"]`).textContent = weaponDamageText(w, !w.thrown);   // arremesso nunca recebe o bônus de Fúria
+                document.querySelector(`[data-rage-tag="${w.id}"]`).classList.toggle('hidden', !state.raging);
+            });
+            setPips('javelins', '', 'ico:javelin', 'Azagaia');
+            $('jav-count').textContent = `${state.javelins} de ${CHAR.javMax}`;
+            $('jav-collect').disabled = state.javelins === CHAR.javMax;
+            const throwJav = document.querySelector('[data-throw="azagaia"]');
+            throwJav.disabled = state.javelins === 0;
+            throwJav.querySelector('span').textContent = state.javelins === 0 ? 'Sem azagaias' : 'Arremessar';
+
+            // --- Descanso ---
+            setPips('hdLeft', '', 'die:12', 'Dado de vida');
+            $('hd-counter-text').textContent = `${state.hdLeft} de ${CHAR.hdMax} dados de vida (1d${CHAR.hdDie} ${fmt(CHAR.mods.CON)})`;
+            $('hd-btn').disabled = state.hdLeft === 0 || state.hp >= CHAR.maxHp;
+
+            // --- Modo de rolagem ---
+            document.querySelectorAll('[data-seg] button').forEach(b => {
+                const on = b.dataset.mode === state.rollMode;
+                b.setAttribute('aria-checked', on);
+            });
+
+            // --- Campos da Bio (sem atropelar quem está digitando) ---
+            if (document.activeElement !== $('coins')) $('coins').value = state.coins;
+            if (document.activeElement !== $('notes')) $('notes').value = state.notes;
+        }
+
+        // ===================== ROLAGENS =====================
+        // Vantagem e desvantagem se anulam; duas fontes do mesmo lado não se somam.
+        function combineMode(...sources) {
+            const adv = sources.includes('adv'), dis = sources.includes('dis');
+            return adv && dis ? 'normal' : adv ? 'adv' : dis ? 'dis' : 'normal';
+        }
+        function rollD20(mode) {
+            const a = d(20);
+            if (mode === 'normal') return { kept: a, text: `d20: ${a}` };
+            const b = d(20), kept = mode === 'adv' ? Math.max(a, b) : Math.min(a, b);
+            return { kept, text: `d20: ${a} e ${b}, fica ${kept}` };
+        }
+        const row = (label, value, detail, tone, dice) => ({ label, value, detail, dice: dice || [], tone: tone || 'text-emerald-400' });
+
+        function playDice(finalNumber, done, dice = [20]) {
+            if (reducedMotion()) { done(); return; }
+            const overlay = $('dice-anim-overlay'), box = $('dice-anim-container');
+            let finished = false, t1, t2;
+            const finish = () => {
+                if (finished) return;
+                finished = true; clearTimeout(t1); clearTimeout(t2);
+                overlay.classList.remove('active'); box.classList.remove('bouncing', 'show-result');
+                skipDice = null; done();
+            };
+            skipDice = finish;
+            $('dice-anim-dice').innerHTML = dice.map(sides => dieSvg(sides)).join('');
+            box.classList.toggle('multi', dice.length > 1);
+            $('dice-anim-text').textContent = finalNumber;
+            box.classList.remove('show-result'); box.classList.add('bouncing');
+            overlay.classList.add('active');
+            if (navigator.vibrate) navigator.vibrate(30);
+            t1 = setTimeout(() => { box.classList.remove('bouncing'); box.classList.add('show-result'); }, 450);
+            t2 = setTimeout(finish, 750);
+        }
+        let skipDice = null;
+
+        function showResult({ title, sub, rows }) {
+            $('modal-title').textContent = title;
+            $('modal-sub').textContent = sub;
+            $('modal-rows').innerHTML = rows.map(r => `
+                <div class="bg-slate-800 rounded-xl p-3 border border-slate-700">
+                    <p class="label uppercase tracking-wider mb-1 flex items-center justify-center gap-1.5">${r.dice.map(sides => dieSvg(sides)).join('')}<span>${r.label}</span></p>
+                    <p class="text-4xl font-bold font-title ${r.tone}">${r.value}</p>
+                    <p class="text-sm text-slate-300 mt-1">${r.detail}</p>
+                </div>`).join('');
+            openModal('dice-modal', $('modal-again').classList.contains('hidden') ? 'modal-close' : 'modal-again');
+        }
+
+        function rollWeapon(weaponId, melee) {
+            const w = WEAPONS.find(x => x.id === weaponId);
+            if (!melee && w.ammo && state.javelins === 0) { closeModal('dice-modal'); toast('Sem azagaias. Recolha as que arremessou.', false); return; }
+            const mode = state.rollMode, d20 = rollD20(mode);
+            const crit = d20.kept === 20, miss = d20.kept === 1;
+            const rage = melee && state.raging ? CHAR.rageDmg : 0;
+            const dice = [d(w.die)]; if (crit) dice.push(d(w.die));
+            const dmg = dice.reduce((s, n) => s + n, 0) + CHAR.mods.FOR + rage;
+            const dmgDetail = `${dice.length}d${w.die} (${dice.join(' + ')}) + ${CHAR.mods.FOR}${rage ? ` + ${rage} Fúria` : ''}`;
+            if (!melee && w.ammo) commit(() => { state.javelins -= 1; });
+
+            playDice(d20.kept, () => showResult({
+                title: crit ? 'Crítico!' : miss ? 'Erro automático' : 'Ataque',
+                sub: `${w.name} · ${melee ? 'corpo a corpo' : 'arremesso'} · ${MODE_LABEL[mode].toLowerCase()}`,
+                rows: [
+                    row(`Acerto (d20 ${fmt(HIT_BONUS)})`, crit ? '20 natural' : miss ? '1 natural' : d20.kept + HIT_BONUS,
+                        crit || miss ? d20.text : `${d20.text} ${fmt(HIT_BONUS)}`, crit ? 'text-amber-400' : miss ? 'text-red-400' : 'text-emerald-400', [20]),
+                    row(`Dano ${w.type}`, miss ? '—' : dmg, miss ? 'O golpe erra o alvo.' : dmgDetail, 'text-white', dice.map(() => w.die))
+                ]
+            }));
+        }
+
+        function rollCheck({ kind, abil, bonus, name }) {
+            bonus = +bonus;
+            const sources = [state.rollMode], notes = [];
+            if (kind === 'initiative' && CHAR.initiativeAdv) { sources.push('adv'); notes.push('Vantagem do Instinto Selvagem.'); }
+            if (abil === 'FOR' && state.raging && kind !== 'initiative') { sources.push('adv'); notes.push('Vantagem da Fúria em FOR.'); }
+            if (kind === 'save' && abil === 'DES') notes.push('Sentido de Perigo: vantagem se você vê a origem.');
+            const mode = combineMode(...sources), d20 = rollD20(mode);
+            const title = kind === 'save' ? `Resistência de ${ABIL[abil]}` : kind === 'skill' ? name : kind === 'initiative' ? 'Iniciativa' : `Teste de ${ABIL[abil]}`;
+            playDice(d20.kept, () => showResult({
+                title,
+                sub: MODE_LABEL[mode] + (kind === 'skill' ? ` · ${ABIL[abil]}` : ''),
+                rows: [row(`Resultado (d20 ${fmt(bonus)})`, d20.kept + bonus,
+                    `${d20.text} ${fmt(bonus)}${notes.length ? '<br>' + notes.join(' ') : ''}`,
+                    d20.kept === 20 ? 'text-amber-400' : d20.kept === 1 ? 'text-red-400' : 'text-emerald-400', [20])]
+            }));
+        }
+
+        function rollShield() {
+            const a = d(6), b = d(6);
+            playDice(a + b, () => showResult({
+                title: 'Escudo Espiritual', sub: 'Reação dos Guardiões Ancestrais',
+                rows: [row('Dano reduzido do aliado', `−${a + b}`, `2d6 (${a} + ${b})${state.raging ? '' : '<br>Lembrete: só vale em Fúria.'}`, 'text-blue-300', [6, 6])]
+            }), [6, 6]);
+        }
+
+        function spendHd() {
+            if (state.hdLeft === 0 || state.hp >= CHAR.maxHp) return;
+            const roll = d(CHAR.hdDie), before = state.hp;
+            const healed = Math.max(0, roll + CHAR.mods.CON);
+            const gain = Math.min(healed, CHAR.maxHp - before);
+            commit(() => { state.hdLeft -= 1; heal(healed); }, `Dado de vida: +${gain} PV`);
+            playDice(roll, () => showResult({
+                title: 'Dado de vida', sub: 'Descanso curto',
+                rows: [row('PV recuperados', `+${state.hp - before}`, `1d${CHAR.hdDie} (${roll}) + ${CHAR.mods.CON} CON · PV ${before} para ${state.hp}`, 'text-emerald-400', [CHAR.hdDie])]
+            }), [CHAR.hdDie]);
+        }
+
+        // ===================== PONTOS DE VIDA =====================
+        function heal(n) {
+            if (n <= 0) return;
+            if (state.hp === 0) { state.dsS = 0; state.dsF = 0; }   // voltou a ficar de pé: testes contra a morte zeram
+            state.hp = Math.min(CHAR.maxHp, state.hp + n);
+        }
+        function damage(n) {
+            const fromTemp = Math.min(state.tempHp, n);
+            state.tempHp -= fromTemp;
+            state.hp = Math.max(0, state.hp - (n - fromTemp));
+            if (state.hp === 0) state.raging = false;               // inconsciente: a Fúria termina
+        }
+        function readAmount() {
+            const input = $('hp-amount'), n = Math.floor(+input.value);
+            if (!input.value || !Number.isFinite(n) || n <= 0) {
+                toast('Digite um valor primeiro.', false);
+                input.focus();
+                return null;
+            }
+            input.value = ''; input.blur();
+            return n;
+        }
+        function applyDamage(n) {
+            const final = half ? Math.floor(n / 2) : n, wasHalf = half;
+            const drops = state.hp > 0 && state.hp - Math.max(0, final - state.tempHp) <= 0;
+            half = false;
+            commit(() => damage(final), `−${final} PV${wasHalf ? ` (metade de ${n})` : ''}${drops ? ' · caiu a 0' : ''}`);
+        }
+        function applyHeal(n) { commit(() => heal(n), `+${n} PV`); }
+
+        // ===================== MODAIS =====================
+        function openModal(id, focusId) {
+            if (!document.querySelector('.modal-overlay.show')) lastFocus = document.activeElement;
+            $(id).classList.add('show');
+            $(focusId).focus({ preventScroll: true });
+        }
+        function closeModal(id) {
+            if (!$(id).classList.contains('show')) return;
+            $(id).classList.remove('show');
+            if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+        }
+
+        // ===================== AÇÕES =====================
+        const actions = {
+            tab({ tab }) {
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
+                document.querySelectorAll('.nav-btn').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+                window.scrollTo(0, 0);
+            },
+            goCombat() { actions.tab({ tab: 'combat' }); },
+            mode({ mode }) { state.rollMode = mode; persist(); render(); },
+            pip({ key, i }) {
+                i = +i;
+                commit(() => { state[key] = i < state[key] ? i : i + 1; });
+            },
+            toggleRage() {
+                if (state.raging) commit(() => { state.raging = false; }, 'Fúria encerrada');
+                else if (state.rageLeft > 0) commit(() => { state.rageLeft -= 1; state.raging = true; }, 'Em Fúria. Restam ' + (state.rageLeft - 1) + ' usos');
+            },
+            toggleHalf() { half = !half; render(); },
+            hpDamage() { const n = readAmount(); if (n) applyDamage(n); },
+            hpHeal() { const n = readAmount(); if (n) applyHeal(n); },
+            hpTemp() {
+                const n = readAmount(); if (!n) return;
+                if (n <= state.tempHp) { toast(`Você já tem ${state.tempHp} PV temporários; eles não se somam.`, false); return; }
+                commit(() => { state.tempHp = n; }, `${n} PV temporários`);
+            },
+            hpQuick({ n }) { n = +n; if (n < 0) applyDamage(-n); else applyHeal(n); },
+            clearTemp() { commit(() => { state.tempHp = 0; }, 'PV temporários zerados'); },
+            rollInitiative() { run(() => rollCheck({ kind: 'initiative', abil: 'DES', bonus: CHAR.mods.DES })); },
+            rollCheck(data) { run(() => rollCheck(data)); },
+            rollWeapon({ weapon, melee }) { run(() => rollWeapon(weapon, melee === '1')); },
+            rollShield() { run(rollShield); },
+            rollAgain() { if (lastRoll) lastRoll(); },
+            spendHd() { lastRoll = null; $('modal-again').classList.add('hidden'); spendHd(); },
+            collectJavelins() { commit(() => { state.javelins = CHAR.javMax; }, 'Azagaias recolhidas'); },
+            openRest() { openModal('rest-modal', 'rest-confirm'); },
+            closeRest(_, el, ev) { if (ev.target === el) closeModal('rest-modal'); },
+            confirmRest() {
+                closeModal('rest-modal');
+                commit(() => { state = { ...state, hp: CHAR.maxHp, tempHp: 0, rageLeft: CHAR.rageMax, raging: false, hdLeft: CHAR.hdMax, javelins: CHAR.javMax, dsS: 0, dsF: 0 }; },
+                    'Descanso longo concluído');
+            },
+            closeResult(_, el, ev) { if (ev.target === el) closeModal('dice-modal'); },
+            skipDice() { if (skipDice) skipDice(); },
+            undo() {
+                if (!undoSnapshot) return;
+                state = sanitize(JSON.parse(undoSnapshot)); undoSnapshot = null;
+                persist(); render(); toast('Desfeito', false);
+            }
+        };
+        // Guarda a rolagem para o botão "Rolar de novo"
+        function run(fn) { lastRoll = fn; $('modal-again').classList.remove('hidden'); fn(); }
+
+        document.addEventListener('click', ev => {
+            const el = ev.target.closest('[data-act]');
+            if (!el || el.disabled) return;
+            actions[el.dataset.act](el.dataset, el, ev);
+        });
+        document.addEventListener('keydown', ev => {
+            if (ev.key === 'Escape') { closeModal('dice-modal'); closeModal('rest-modal'); if (skipDice) skipDice(); }
+        });
+        $('coins').addEventListener('input', ev => { state.coins = clamp(Math.floor(+ev.target.value) || 0, 0, 9999999); persist(); });
+        $('notes').addEventListener('input', ev => { state.notes = ev.target.value; persist(); });
+
+
+        // ---------- Nuvem (Supabase) ----------
+        const SB_URL = 'https://woikrpjmpgvaufohhxce.supabase.co', SB_KEY = 'sb_publishable_ZacoWNBiGFaFVlaO5dIDuw_LgtWvziI';
+        const SYNC_CODE = 'sylvarion_sync_code', SYNC_AT = 'sylvarion_sync_at', LOCAL_AT = 'sylvarion_local_at';
+        let pushTimer = null, syncing = false;
+        const ts = v => { const n = Date.parse(v); return isNaN(n) ? 0 : n; };
+        async function rpc(fn, body) {
+            const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, { method: 'POST',
+                headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }
+        function setSyncUi(msg) {
+            const code = storageGet(SYNC_CODE);
+            const el = document.getElementById('sync-status'); if (!el) return;
+            document.getElementById('sync-off').classList.toggle('hidden', !!code);
+            document.getElementById('sync-on').classList.toggle('hidden', !code);
+            document.getElementById('sync-code').textContent = code || '';
+            el.textContent = msg || (code ? 'Sincronização ligada.' : 'Sincronização desligada. Sua ficha fica só neste aparelho.');
+        }
+        function schedulePush() { if (!storageGet(SYNC_CODE)) return; clearTimeout(pushTimer); pushTimer = setTimeout(() => syncNow(), 1500); }
+        async function syncNow() {
+            const code = storageGet(SYNC_CODE); if (!code || syncing) return;
+            if (!navigator.onLine) { setSyncUi('Sem internet: sincroniza quando voltar.'); return; }
+            syncing = true;
+            try {
+                const rows = await rpc('get_sheet', { p_code: code });
+                const remote = rows && rows[0];
+                const localAt = +storageGet(LOCAL_AT) || 0, syncAt = +storageGet(SYNC_AT) || 0;
+                if (remote && ts(remote.updated_at) > syncAt && ts(remote.updated_at) > localAt) {
+                    state = sanitize({ ...DEFAULTS, ...remote.data }); storageSet(STORAGE_KEY, JSON.stringify(state));
+                    storageSet(SYNC_AT, String(ts(remote.updated_at))); storageSet(LOCAL_AT, String(ts(remote.updated_at)));
+                    render(); setSyncUi('Ficha atualizada da nuvem.');
+                } else if (!remote || localAt > syncAt) {
+                    const t = await rpc('save_sheet', { p_code: code, p_data: state });
+                    storageSet(SYNC_AT, String(ts(t))); setSyncUi('Salvo na nuvem às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.');
+                } else setSyncUi('Tudo em dia com a nuvem.');
+            } catch (e) { console.error(e); setSyncUi('Não consegui sincronizar agora. Tento de novo depois.'); }
+            syncing = false;
+        }
+        function genCode() { const a = new Uint8Array(12); crypto.getRandomValues(a); return 'syl-' + Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); }
+        function initSync() {
+            document.getElementById('sync-new').addEventListener('click', () => { storageSet(SYNC_CODE, genCode()); storageSet(LOCAL_AT, String(Date.now())); setSyncUi(); syncNow(); });
+            document.getElementById('sync-join').addEventListener('click', () => {
+                const c = document.getElementById('sync-code-in').value.trim();
+                if (c.length < 16) { setSyncUi('Código inválido.'); return; }
+                storageSet(SYNC_CODE, c); storageSet(SYNC_AT, '0'); storageSet(LOCAL_AT, '0'); setSyncUi(); syncNow();
+            });
+            document.getElementById('sync-now').addEventListener('click', syncNow);
+            document.getElementById('sync-off-btn').addEventListener('click', () => { storageSet(SYNC_CODE, ''); setSyncUi(); });
+            window.addEventListener('online', syncNow);
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
+            setSyncUi(); syncNow();
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+
+        loadState();
+        buildStatic();
+        render();
+        initSync();
+    </script>
+</body>
+</html>
